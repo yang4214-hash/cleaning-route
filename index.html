@@ -56,11 +56,11 @@ header { background: var(--accent); padding: 0 20px; height: 56px; display: flex
 .same-dest { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 13px; color: var(--text-muted); cursor: pointer; }
 .same-dest input[type="checkbox"] { width: 18px; height: 18px; }
 
-/* 드래그앤드롭 커스텀 스타일 추가 */
+/* 드래그앤드롭 스타일링 보강 */
 .loc-list { display: flex; flex-direction: column; gap: 10px; }
 .loc-card { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px; background: var(--surface); cursor: grab; transition: transform 0.15s, background-color 0.15s; }
 .loc-card:active { cursor: grabbing; }
-.loc-card.dragging { opacity: 0.5; background-color: var(--accent-light); transform: scale(0.98); }
+.loc-card.dragging { opacity: 0.4; background-color: var(--accent-light); transform: scale(0.98); }
 
 .loc-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
 .loc-num { width: 28px; height: 28px; border-radius: 50%; color: white; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; user-select: none; }
@@ -70,24 +70,4 @@ header { background: var(--accent); padding: 0 20px; height: 56px; display: flex
 .loc-name-input:focus { border-bottom-color: var(--accent); background: var(--bg); border-radius: 4px 4px 0 0; }
 .edit-hint { font-size: 10px; color: var(--text-muted); margin-top: 1px; display: none; }
 .loc-name-input:focus ~ .edit-hint { display: block; }
-.btn-rm { background: none; border: none; cursor: pointer; color: var(--text-muted); font-size: 22px; line-height: 1; padding: 4px; border-radius: 4px; flex-shrink: 0; }
-.btn-rm:hover { color: var(--accent-2); }
-.loc-addr-field { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px; margin-bottom: 8px; outline: none; -webkit-appearance: none; }
-.loc-addr-field:focus { border-color: var(--accent); }
-.loc-footer { display: flex; align-items: center; gap: 8px; }
-.loc-footer label { font-size: 13px; color: var(--text-muted); white-space: nowrap; }
-.dur-input { width: 70px; padding: 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px; text-align: center; outline: none; }
-.btn-add { width: 100%; padding: 12px; border: 1.5px dashed var(--border); border-radius: var(--radius-sm); background: transparent; color: var(--text-muted); font-size: 14px; cursor: pointer; }
-.btn-add:hover, .btn-add:active { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
-.btn-calc { width: 100%; padding: 15px; background: var(--accent); color: white; border: none; border-radius: var(--radius); font-size: 16px; font-weight: 700; cursor: pointer; }
-.btn-calc:disabled { opacity: 0.5; cursor: not-allowed; }
-.result-section { background: var(--bg); border-top: 1px solid var(--border); padding: 16px 20px; display: none; }
-.result-section.show { display: block; }
-.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
-.stat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 8px; text-align: center; }
-.stat-val { font-size: 17px; font-weight: 700; color: var(--accent); }
-.stat-lbl { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
-.timeline { display: flex; flex-direction: column; }
-.tl-item { display: flex; gap: 10px; }
-.tl-left { display: flex; flex-direction: column; align-items: center; width: 20px; flex-shrink: 0; }
-.tl-dot { width: 11px; height: 11px; border
+.btn-rm { background: none; border: none; cursor: pointer; color: var(--text-muted); font-size: 22px; line-height: 1; padding:
