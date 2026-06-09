@@ -55,24 +55,17 @@ header { background: var(--accent); padding: 0 20px; height: 56px; display: flex
 .field input[type="time"], .field input[type="text"] { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 15px; color: var(--text); background: var(--surface); outline: none; -webkit-appearance: none; }
 .same-dest { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 13px; color: var(--text-muted); cursor: pointer; }
 .same-dest input[type="checkbox"] { width: 18px; height: 18px; }
-
-/* 순서 변경 드래그앤드롭 스타일 가속화 */
 .loc-list { display: flex; flex-direction: column; gap: 10px; }
-.loc-card { display: flex; gap: 10px; align-items: flex-start; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px 14px 14px 4px; background: var(--surface); transition: transform 0.15s, background-color 0.15s; position: relative; }
-.loc-card.dragging { opacity: 0.5; background-color: var(--accent-light); border: 1px dashed var(--accent); transform: scale(0.98); z-index: 10; }
-
-/* 드래그 핸들: 마우스를 갖다 대면 움직일 수 있음을 명시 */
-.drag-handle { display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; color: var(--text-muted); cursor: move; cursor: -webkit-grab; cursor: grab; font-size: 18px; user-select: none; margin-top: -2px; }
-.drag-handle:active { cursor: -webkit-grabbing; cursor: grabbing; color: var(--accent); }
-
-.loc-content { flex: 1; min-width: 0; }
+.loc-card { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px; background: var(--surface); }
 .loc-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
-.loc-num { width: 24px; height: 24px; border-radius: 50%; color: white; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; user-select: none; }
+.loc-num { width: 28px; height: 28px; border-radius: 50%; color: white; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .loc-name-wrap { flex: 1; position: relative; }
-.loc-name-input { width: 100%; border: none; border-bottom: 1.5px solid transparent; padding: 2px 4px; font-size: 15px; font-weight: 600; background: transparent; outline: none; color: var(--text); }
-.loc-name-input:focus { border-bottom-color: var(--accent); }
-
-.btn-rm { background: none; border: none; cursor: pointer; color: var(--text-muted); font-size: 22px; line-height: 1; padding: 4px; border-radius: 4px; flex-shrink: 0; margin-left: auto; }
+.loc-name-input { width: 100%; border: none; border-bottom: 1.5px solid transparent; padding: 2px 4px; font-size: 15px; font-weight: 600; background: transparent; outline: none; color: var(--text); cursor: text; transition: border-color 0.15s; }
+.loc-name-input:hover { border-bottom-color: var(--border); }
+.loc-name-input:focus { border-bottom-color: var(--accent); background: var(--bg); border-radius: 4px 4px 0 0; }
+.edit-hint { font-size: 10px; color: var(--text-muted); margin-top: 1px; display: none; }
+.loc-name-input:focus ~ .edit-hint { display: block; }
+.btn-rm { background: none; border: none; cursor: pointer; color: var(--text-muted); font-size: 22px; line-height: 1; padding: 4px; border-radius: 4px; flex-shrink: 0; }
 .btn-rm:hover { color: var(--accent-2); }
 .loc-addr-field { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px; margin-bottom: 8px; outline: none; -webkit-appearance: none; }
 .loc-addr-field:focus { border-color: var(--accent); }
@@ -104,11 +97,4 @@ header { background: var(--accent); padding: 0 20px; height: 56px; display: flex
 .btn-text { background: #e8f4ee; color: var(--accent); }
 .loading-bar { display: none; align-items: center; gap: 8px; padding: 12px 20px; background: var(--accent-light); border-top: 1px solid var(--border); font-size: 13px; color: var(--accent); }
 .loading-bar.show { display: flex; }
-.spinner { width: 16px; height: 16px; border: 2px solid var(--accent-light); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0; }
-@keyframes spin { to { transform: rotate(360deg); } }
-.error-msg { display: none; padding: 12px 20px; background: var(--accent-2-light); border-top: 1px solid #f5c6bb; font-size: 13px; color: var(--accent-2); }
-.error-msg.show { display: block; }
-.save-notice { font-size: 11px; color: var(--accent); background: var(--accent-light); padding: 7px 10px; border-radius: 6px; margin-top: 8px; text-align: center; }
-.install-banner { display: none; background: var(--accent); color: white; padding: 12px 20px; font-size: 13px; align-items: center; justify-content: space-between; gap: 12px; }
-.install-banner.show { display: flex; }
-.install-btn { background: white; color: var(--accent); border: none; border-radius: 20px; padding: 6px 14px; font-size: 1
+.spinner { width: 16px; height: 16px; border:
