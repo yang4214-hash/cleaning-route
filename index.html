@@ -46,7 +46,7 @@ header { background: var(--accent); padding: 0 20px; height: 56px; display: flex
 .map-click-hint { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); background: rgba(45,106,79,0.92); color: white; padding: 7px 16px; border-radius: 20px; font-size: 12px; font-weight: 600; z-index: 10; display: none; pointer-events: none; white-space: nowrap; }
 .map-click-hint.show { display: block; }
 /* 지도 클릭 모드일 때 지도 커서 */
-.map-wrap.pin-cursor #map { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 24 24'%3E%3Cpath fill='%232d6a4f' d='M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z'/%3E%3C/svg%3E") 12 32, crosshair; }
+.map-wrap.pin-cursor #map { cursor: crosshair; }
 
 @media (max-width: 768px) {
   .main { flex-direction: column; height: auto; }
@@ -63,7 +63,7 @@ header { background: var(--accent); padding: 0 20px; height: 56px; display: flex
 
 /* 툴팁 */
 .tooltip-wrap { position: relative; display: inline-flex; align-items: center; }
-.tooltip-wrap .tip { position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); background: #1a1a1a; color: white; font-size: 11px; font-weight: 400; padding: 6px 10px; border-radius: 8px; white-space: nowrap; z-index: 9999; display: none; pointer-events: none; line-height: 1.5; text-align: center; max-width: 220px; white-space: normal; width: max-content; max-width: 200px; }
+.tooltip-wrap .tip { position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); background: #1a1a1a; color: white; font-size: 11px; font-weight: 400; padding: 6px 10px; border-radius: 8px; white-space: normal; word-break: keep-all; z-index: 9999; display: none; pointer-events: none; line-height: 1.5; text-align: center; width: 160px; }
 .tooltip-wrap .tip::after { content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); border: 5px solid transparent; border-top-color: #1a1a1a; }
 .tooltip-wrap:hover .tip { display: block; }
 
@@ -826,21 +826,31 @@ async function autoSort() {
   finally{btn.disabled=false;btn.textContent='🔀 최적 순서';}
 }
 
-// 카카오톡 공유 → 텍스트 클립보드 복사 + 카카오톡 열기
 function shareKakao() {
   if (!lastResult) return alert('먼저 동선을 계산해주세요.');
-  const text = buildShareText();
-  navigator.clipboard.writeText(text).then(()=>{
-    showToast('📋 복사됐어요! 카카오톡에 붙여넣기 하세요');
-    // 모바일에서 카카오톡 앱 열기 시도
-    setTimeout(()=>{
-      window.location.href = 'kakaolink://send';
-    }, 500);
-  }).catch(()=>{
-    const ta=document.createElement('textarea');ta.value=text;
-    document.body.appendChild(ta);ta.select();document.execCommand('copy');
-    document.body.removeChild(ta);
-    showToast('📋 복사됐어요! 카카오톡에 붙여넣기 하세요');
+  const {steps,totalTravel,totalWork,destType}=lastResult;
+  const locCount=steps.length-2;
+  const locNames=steps.slice(1,-1).map(s=>s.name).join(' → ');
+  const finishTime=steps[steps.length-1].detail.split(' ')[0];
+  const shareUrl=buildShareUrl();
+  if (window.Kakao&&Kakao.isInitialized()) {
+    try {
+      Kakao.Share.sendDefault({
+        objectType:'feed',
+        content:{
+          title:`🧹 ${DAYS[currentDay]}요일 청소 동선 (현장 ${locCount}곳)`,
+          description:`${locNames}\n⏱ 이동 ${fmtMins(totalTravel)} | 작업 ${fmtMins(totalWork)} | ${destType==='last'?'완료':'귀가'} ${finishTime}`,
+          imageUrl:'https://t1.kakaocdn.net/kakaocorp/kakaocorp/admin/service/a85d0594017900001.png',
+          link:{mobileWebUrl:shareUrl,webUrl:shareUrl}
+        },
+        buttons:[{title:'🗺 동선 지도 보기',link:{mobileWebUrl:shareUrl,webUrl:shareUrl}}]
+      });
+      return;
+    } catch(e){console.log('카카오 공유 오류',e);}
+  }
+  const t=buildShareText();
+  navigator.clipboard.writeText(t).then(()=>showToast('📋 복사됨! 카카오톡에 붙여넣기 하세요')).catch(()=>{
+    const ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);showToast('📋 복사됨!');
   });
 }
 function copyText(){
