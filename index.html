@@ -2,7 +2,12 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="theme-color" content="#2d6a4f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="동선플래너">
+<link rel="manifest" href="/manifest.json">
 <title>청소 동선 플래너</title>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -14,78 +19,126 @@
   --radius: 12px; --radius-sm: 8px;
 }
 body { font-family: -apple-system, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
-header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 24px; height: 56px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
-.logo { display: flex; align-items: center; gap: 10px; font-size: 16px; font-weight: 700; color: var(--accent); }
-.logo-icon { width: 30px; height: 30px; background: var(--accent); border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+header { background: var(--accent); padding: 0 20px; height: 56px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+.logo { display: flex; align-items: center; gap: 10px; font-size: 16px; font-weight: 700; color: white; }
+.logo-icon { width: 28px; height: 28px; background: rgba(255,255,255,0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; }
 .logo-icon svg { fill: white; }
-.header-hint { font-size: 12px; color: var(--text-muted); }
+.header-hint { font-size: 11px; color: rgba(255,255,255,0.7); }
 .main { display: grid; grid-template-columns: 380px 1fr; flex: 1; min-height: 0; height: calc(100vh - 56px); }
 .panel { background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
 .panel-scroll { flex: 1; overflow-y: auto; padding: 20px; }
-.section { margin-bottom: 24px; }
+#map { width: 100%; height: 100%; }
+.map-wrap { position: relative; flex: 1; }
+@media (max-width: 768px) {
+  .main { display: flex; flex-direction: column; height: auto; }
+  .panel { border-right: none; border-bottom: 1px solid var(--border); max-height: none; overflow: visible; }
+  .panel-scroll { overflow: visible; padding: 16px; }
+  .map-wrap { height: 340px; flex-shrink: 0; }
+  .header-hint { display: none; }
+  .field-row { grid-template-columns: 1fr 70px; }
+}
+.section { margin-bottom: 20px; }
 .section-label { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; color: var(--text-muted); text-transform: uppercase; margin-bottom: 10px; }
 .field { margin-bottom: 10px; }
 .field label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 4px; }
 .addr-wrap { position: relative; }
-.addr-wrap input { width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 14px; color: var(--text); background: var(--surface); outline: none; }
+.addr-wrap input { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 15px; color: var(--text); background: var(--surface); outline: none; -webkit-appearance: none; }
 .addr-wrap input:focus { border-color: var(--accent); }
-.dropdown { position: absolute; top: 100%; left: 0; right: 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: 0 4px 12px rgba(0,0,0,0.1); z-index: 100; display: none; max-height: 200px; overflow-y: auto; }
+.dropdown { position: absolute; top: 100%; left: 0; right: 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: 0 4px 16px rgba(0,0,0,0.15); z-index: 999; display: none; max-height: 220px; overflow-y: auto; }
 .dropdown.show { display: block; }
-.dropdown-item { padding: 9px 12px; font-size: 13px; cursor: pointer; border-bottom: 0.5px solid var(--border); line-height: 1.4; }
+.dropdown-item { padding: 11px 12px; font-size: 14px; cursor: pointer; border-bottom: 0.5px solid var(--border); line-height: 1.4; }
 .dropdown-item:last-child { border-bottom: none; }
-.dropdown-item:hover { background: var(--accent-light); }
+.dropdown-item:hover, .dropdown-item:active { background: var(--accent-light); }
 .dropdown-item .addr-main { color: var(--text); font-weight: 500; }
-.dropdown-item .addr-sub { color: var(--text-muted); font-size: 11px; margin-top: 1px; }
+.dropdown-item .addr-sub { color: var(--text-muted); font-size: 12px; margin-top: 2px; }
 .field-row { display: grid; grid-template-columns: 1fr 80px; gap: 8px; }
-.field input[type="time"], .field input[type="text"] { width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 14px; color: var(--text); background: var(--surface); outline: none; }
-.loc-list { display: flex; flex-direction: column; gap: 8px; }
-.loc-card { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px; background: var(--surface); }
-.loc-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-.loc-num { width: 24px; height: 24px; border-radius: 50%; background: var(--accent); color: white; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.loc-name-input { flex: 1; border: none !important; padding: 0 !important; font-size: 14px !important; font-weight: 600 !important; background: transparent !important; outline: none; }
-.btn-rm { background: none; border: none; cursor: pointer; color: var(--text-muted); font-size: 18px; line-height: 1; padding: 2px; border-radius: 4px; }
+.field input[type="time"], .field input[type="text"] { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 15px; color: var(--text); background: var(--surface); outline: none; -webkit-appearance: none; }
+.same-dest { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 13px; color: var(--text-muted); cursor: pointer; }
+.same-dest input[type="checkbox"] { width: 18px; height: 18px; }
+.loc-list { display: flex; flex-direction: column; gap: 10px; }
+.loc-card { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px; background: var(--surface); }
+.loc-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.loc-num { width: 28px; height: 28px; border-radius: 50%; color: white; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+/* 현장명 입력 - 수정 가능하게 */
+.loc-name-wrap { flex: 1; position: relative; }
+.loc-name-input {
+  width: 100%;
+  border: none;
+  border-bottom: 1.5px solid transparent;
+  padding: 2px 4px;
+  font-size: 15px;
+  font-weight: 600;
+  background: transparent;
+  outline: none;
+  color: var(--text);
+  cursor: text;
+  transition: border-color 0.15s;
+}
+.loc-name-input:hover { border-bottom-color: var(--border); }
+.loc-name-input:focus { border-bottom-color: var(--accent); background: var(--bg); border-radius: 4px 4px 0 0; }
+.edit-hint { font-size: 10px; color: var(--text-muted); margin-top: 1px; display: none; }
+.loc-name-input:focus ~ .edit-hint { display: block; }
+.btn-rm { background: none; border: none; cursor: pointer; color: var(--text-muted); font-size: 22px; line-height: 1; padding: 4px; border-radius: 4px; flex-shrink: 0; }
 .btn-rm:hover { color: var(--accent-2); }
-.loc-footer { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
-.loc-footer label { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
-.dur-input { width: 64px; padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; text-align: center; outline: none; }
-.btn-add { width: 100%; padding: 10px; border: 1.5px dashed var(--border); border-radius: var(--radius-sm); background: transparent; color: var(--text-muted); font-size: 13px; cursor: pointer; }
-.btn-add:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
-.btn-calc { width: 100%; padding: 13px; background: var(--accent); color: white; border: none; border-radius: var(--radius); font-size: 15px; font-weight: 700; cursor: pointer; }
-.btn-calc:hover { opacity: 0.88; }
+.loc-addr-field { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px; margin-bottom: 8px; outline: none; -webkit-appearance: none; }
+.loc-addr-field:focus { border-color: var(--accent); }
+.loc-footer { display: flex; align-items: center; gap: 8px; }
+.loc-footer label { font-size: 13px; color: var(--text-muted); white-space: nowrap; }
+.dur-input { width: 70px; padding: 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px; text-align: center; outline: none; }
+.btn-add { width: 100%; padding: 12px; border: 1.5px dashed var(--border); border-radius: var(--radius-sm); background: transparent; color: var(--text-muted); font-size: 14px; cursor: pointer; }
+.btn-add:hover, .btn-add:active { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+.btn-calc { width: 100%; padding: 15px; background: var(--accent); color: white; border: none; border-radius: var(--radius); font-size: 16px; font-weight: 700; cursor: pointer; }
 .btn-calc:disabled { opacity: 0.5; cursor: not-allowed; }
-.result-section { background: var(--bg); border-top: 1px solid var(--border); padding: 16px 20px; display: none; max-height: 45vh; overflow-y: auto; }
+.result-section { background: var(--bg); border-top: 1px solid var(--border); padding: 16px 20px; display: none; }
 .result-section.show { display: block; }
 .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
-.stat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px; text-align: center; }
-.stat-val { font-size: 18px; font-weight: 700; color: var(--accent); }
-.stat-lbl { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+.stat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 8px; text-align: center; }
+.stat-val { font-size: 17px; font-weight: 700; color: var(--accent); }
+.stat-lbl { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
 .timeline { display: flex; flex-direction: column; }
 .tl-item { display: flex; gap: 10px; }
 .tl-left { display: flex; flex-direction: column; align-items: center; width: 20px; flex-shrink: 0; }
-.tl-dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+.tl-dot { width: 11px; height: 11px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
 .tl-line { flex: 1; width: 2px; background: var(--border); min-height: 8px; }
-.tl-body { flex: 1; padding-bottom: 12px; }
-.tl-name { font-size: 13px; font-weight: 600; color: var(--text); }
-.tl-detail { font-size: 11px; color: var(--text-muted); margin-top: 2px; line-height: 1.5; }
-#map { width: 100%; height: 100%; }
-.map-wrap { position: relative; flex: 1; }
-.loading-bar { display: none; align-items: center; gap: 8px; padding: 10px 20px; background: var(--accent-light); border-top: 1px solid var(--border); font-size: 13px; color: var(--accent); }
+.tl-body { flex: 1; padding-bottom: 14px; }
+.tl-name { font-size: 14px; font-weight: 600; color: var(--text); }
+.tl-detail { font-size: 12px; color: var(--text-muted); margin-top: 3px; line-height: 1.5; }
+.share-btns { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+.share-btn { flex: 1; min-width: 100px; padding: 11px 8px; border: none; border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; }
+.btn-kakao { background: #FEE500; color: #3A1D1D; }
+.btn-link { background: var(--accent); color: white; }
+.btn-text { background: #e8f4ee; color: var(--accent); }
+.loading-bar { display: none; align-items: center; gap: 8px; padding: 12px 20px; background: var(--accent-light); border-top: 1px solid var(--border); font-size: 13px; color: var(--accent); }
 .loading-bar.show { display: flex; }
 .spinner { width: 16px; height: 16px; border: 2px solid var(--accent-light); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0; }
 @keyframes spin { to { transform: rotate(360deg); } }
-.error-msg { display: none; padding: 10px 20px; background: var(--accent-2-light); border-top: 1px solid #f5c6bb; font-size: 12px; color: var(--accent-2); }
+.error-msg { display: none; padding: 12px 20px; background: var(--accent-2-light); border-top: 1px solid #f5c6bb; font-size: 13px; color: var(--accent-2); }
 .error-msg.show { display: block; }
-.save-notice { font-size: 11px; color: var(--accent); background: var(--accent-light); padding: 6px 10px; border-radius: 6px; margin-top: 8px; text-align: center; }
+.save-notice { font-size: 11px; color: var(--accent); background: var(--accent-light); padding: 7px 10px; border-radius: 6px; margin-top: 8px; text-align: center; }
+.install-banner { display: none; background: var(--accent); color: white; padding: 12px 20px; font-size: 13px; align-items: center; justify-content: space-between; gap: 12px; }
+.install-banner.show { display: flex; }
+.install-btn { background: white; color: var(--accent); border: none; border-radius: 20px; padding: 6px 14px; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #1a1a1a; color: white; padding: 10px 20px; border-radius: 20px; font-size: 13px; z-index: 9999; display: none; white-space: nowrap; }
+.toast.show { display: block; animation: fadeInOut 2.5s forwards; }
+@keyframes fadeInOut { 0%{opacity:0} 10%{opacity:1} 80%{opacity:1} 100%{opacity:0} }
 </style>
 </head>
 <body>
+
+<div class="install-banner" id="install-banner">
+  <span>📱 홈 화면에 앱으로 추가하세요!</span>
+  <button class="install-btn" id="install-btn">추가하기</button>
+  <button style="background:none;border:none;color:white;font-size:20px;cursor:pointer;padding:0 4px" onclick="document.getElementById('install-banner').classList.remove('show')">×</button>
+</div>
+
 <header>
   <div class="logo">
     <div class="logo-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg></div>
     청소 동선 플래너
   </div>
-  <span class="header-hint">카카오 지도 기반 · 작업시간 포함 최적 동선</span>
+  <span class="header-hint">카카오 지도 기반</span>
 </header>
+
 <div class="main">
   <div class="panel">
     <div class="panel-scroll">
@@ -103,14 +156,32 @@ header { background: var(--surface); border-bottom: 1px solid var(--border); pad
           <div class="field" style="margin:0"><label>여유(분)</label><input type="text" id="buffer" value="0" style="text-align:center"></div>
         </div>
       </div>
+
+      <div class="section">
+        <div class="section-label">도착 정보</div>
+        <label class="same-dest">
+          <input type="checkbox" id="same-dest" checked onchange="toggleDest()">
+          출발지와 동일 (귀가)
+        </label>
+        <div id="dest-field" style="display:none;margin-top:10px;">
+          <div class="field" style="margin:0">
+            <label>도착지 주소</label>
+            <div class="addr-wrap">
+              <input type="text" id="dest-addr" placeholder="주소 검색..." autocomplete="off">
+              <div class="dropdown" id="dest-dropdown"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="section">
         <div class="section-label">현장 목록</div>
         <div class="loc-list" id="loc-list"></div>
-        <button class="btn-add" onclick="addLoc()" style="margin-top:8px">+ 현장 추가</button>
+        <button class="btn-add" onclick="addLoc()" style="margin-top:10px">+ 현장 추가</button>
         <div class="save-notice">💾 현장 목록은 자동 저장됩니다</div>
       </div>
     </div>
-    <div class="loading-bar" id="loading"><div class="spinner"></div><span>경로 계산 중...</span></div>
+    <div class="loading-bar" id="loading"><div class="spinner"></div><span id="loading-text">경로 계산 중...</span></div>
     <div class="error-msg" id="error-msg"></div>
     <div style="padding:16px 20px;border-top:1px solid var(--border);">
       <button class="btn-calc" id="btn-calc" onclick="calculate()">최적 동선 계산하기</button>
@@ -118,23 +189,61 @@ header { background: var(--surface); border-bottom: 1px solid var(--border); pad
     <div class="result-section" id="result-section">
       <div class="stats" id="stats"></div>
       <div class="timeline" id="timeline"></div>
+      <div class="share-btns">
+        <button class="share-btn btn-kakao" onclick="shareKakao()">💬 카카오톡</button>
+        <button class="share-btn btn-link" onclick="copyLink()">🔗 링크 복사</button>
+        <button class="share-btn btn-text" onclick="copyText()">📋 텍스트</button>
+      </div>
     </div>
   </div>
   <div class="map-wrap"><div id="map"></div></div>
 </div>
 
+<div class="toast" id="toast"></div>
+
+<script src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.2/kakao.min.js" crossorigin="anonymous"></script>
 <script>
 const KAKAO_KEY = '18917cb7a54fccdb0bce1d1351c3eb62';
 const COLORS = ['#2d6a4f','#e76f51','#457b9d','#e9c46a','#6d597a','#3a86ff','#fb8500','#2ec4b6','#e63946','#606c38'];
 let locs = [], nextId = 1;
-let map, customOverlays = [], polylines = [];
+let map, customOverlays = [], polylines = [], infoOverlays = [];
 let geocoder;
+let lastResult = null;
+let deferredPrompt = null;
+
+// PWA
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault(); deferredPrompt = e;
+  document.getElementById('install-banner').classList.add('show');
+});
+document.getElementById('install-btn').addEventListener('click', async () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  await deferredPrompt.userChoice;
+  deferredPrompt = null;
+  document.getElementById('install-banner').classList.remove('show');
+});
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(()=>{});
+if (window.Kakao && !Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.remove('show');
+  void t.offsetWidth; t.classList.add('show');
+}
+
+function toggleDest() {
+  document.getElementById('dest-field').style.display = document.getElementById('same-dest').checked ? 'none' : 'block';
+  saveData();
+}
 
 function saveData() {
   try {
     localStorage.setItem('cleaning_locs', JSON.stringify(locs));
     localStorage.setItem('cleaning_home', document.getElementById('home-addr').value);
     localStorage.setItem('cleaning_dep', document.getElementById('departure').value);
+    localStorage.setItem('cleaning_same_dest', document.getElementById('same-dest').checked);
+    localStorage.setItem('cleaning_dest', document.getElementById('dest-addr').value);
   } catch(e) {}
 }
 
@@ -143,68 +252,61 @@ function loadData() {
     const saved = localStorage.getItem('cleaning_locs');
     const home = localStorage.getItem('cleaning_home');
     const dep = localStorage.getItem('cleaning_dep');
+    const sameDest = localStorage.getItem('cleaning_same_dest');
+    const dest = localStorage.getItem('cleaning_dest');
     if (saved) { locs = JSON.parse(saved); nextId = locs.length ? Math.max(...locs.map(l=>l.id))+1 : 1; }
     else { locs = [{id:1,name:'A 현장',addr:'',dur:60},{id:2,name:'B 현장',addr:'',dur:60}]; nextId = 3; }
     if (home) document.getElementById('home-addr').value = home;
     if (dep) document.getElementById('departure').value = dep;
+    if (sameDest === 'false') {
+      document.getElementById('same-dest').checked = false;
+      document.getElementById('dest-field').style.display = 'block';
+    }
+    if (dest) document.getElementById('dest-addr').value = dest;
   } catch(e) {
     locs = [{id:1,name:'A 현장',addr:'',dur:60},{id:2,name:'B 현장',addr:'',dur:60}]; nextId = 3;
   }
 }
 
-// 주소 자동완성
 function setupAddrSearch(inputId, dropdownId, onSelect) {
   const input = document.getElementById(inputId);
   const dropdown = document.getElementById(dropdownId);
+  if (!input || !dropdown) return;
   let timer;
-
   input.addEventListener('input', function() {
     clearTimeout(timer);
     const q = this.value.trim();
     if (q.length < 2) { dropdown.classList.remove('show'); return; }
     timer = setTimeout(() => searchAddr(q, dropdown, input, onSelect), 300);
   });
-
-  input.addEventListener('blur', function() {
-    setTimeout(() => dropdown.classList.remove('show'), 200);
-  });
+  input.addEventListener('blur', () => setTimeout(() => dropdown.classList.remove('show'), 200));
 }
 
 function searchAddr(query, dropdown, input, onSelect) {
   geocoder.addressSearch(query, function(result, status) {
     dropdown.innerHTML = '';
     if (status === kakao.maps.services.Status.OK && result.length > 0) {
-      result.slice(0, 5).forEach(item => {
+      result.slice(0,5).forEach(item => {
         const div = document.createElement('div');
         div.className = 'dropdown-item';
-        const roadAddr = item.road_address ? item.road_address.address_name : '';
-        const jibunAddr = item.address ? item.address.address_name : '';
-        div.innerHTML = `<div class="addr-main">${roadAddr || jibunAddr}</div>${roadAddr && jibunAddr ? `<div class="addr-sub">${jibunAddr}</div>` : ''}`;
-        div.addEventListener('mousedown', function() {
-          input.value = roadAddr || jibunAddr;
-          dropdown.classList.remove('show');
-          onSelect(roadAddr || jibunAddr);
-        });
+        const road = item.road_address ? item.road_address.address_name : '';
+        const jibun = item.address ? item.address.address_name : '';
+        div.innerHTML = `<div class="addr-main">${road||jibun}</div>${road&&jibun?`<div class="addr-sub">${jibun}</div>`:''}`;
+        div.addEventListener('mousedown', () => { input.value=road||jibun; dropdown.classList.remove('show'); onSelect(road||jibun); });
         dropdown.appendChild(div);
       });
       dropdown.classList.add('show');
     } else {
-      // 키워드 검색도 시도
-      const ps = new kakao.maps.services.Places();
-      ps.keywordSearch(query, function(r, s) {
-        if (s === kakao.maps.services.Status.OK) {
-          r.slice(0, 5).forEach(item => {
+      new kakao.maps.services.Places().keywordSearch(query, (r,s) => {
+        if (s===kakao.maps.services.Status.OK) {
+          r.slice(0,5).forEach(item => {
             const div = document.createElement('div');
             div.className = 'dropdown-item';
-            div.innerHTML = `<div class="addr-main">${item.place_name}</div><div class="addr-sub">${item.road_address_name || item.address_name}</div>`;
-            div.addEventListener('mousedown', function() {
-              input.value = item.road_address_name || item.address_name;
-              dropdown.classList.remove('show');
-              onSelect(item.road_address_name || item.address_name);
-            });
+            div.innerHTML = `<div class="addr-main">${item.place_name}</div><div class="addr-sub">${item.road_address_name||item.address_name}</div>`;
+            div.addEventListener('mousedown', () => { input.value=item.road_address_name||item.address_name; dropdown.classList.remove('show'); onSelect(item.road_address_name||item.address_name); });
             dropdown.appendChild(div);
           });
-          if (r.length > 0) dropdown.classList.add('show');
+          if (r.length>0) dropdown.classList.add('show');
         }
       });
     }
@@ -212,14 +314,10 @@ function searchAddr(query, dropdown, input, onSelect) {
 }
 
 function initMap() {
-  map = new kakao.maps.Map(document.getElementById('map'), {
-    center: new kakao.maps.LatLng(37.4563, 127.1313), level: 9
-  });
+  map = new kakao.maps.Map(document.getElementById('map'), { center: new kakao.maps.LatLng(37.4563,127.1313), level:9 });
   geocoder = new kakao.maps.services.Geocoder();
-
-  setupAddrSearch('home-addr', 'home-dropdown', function(addr) {
-    saveData();
-  });
+  setupAddrSearch('home-addr','home-dropdown',()=>saveData());
+  setupAddrSearch('dest-addr','dest-dropdown',()=>saveData());
 }
 
 function renderList() {
@@ -231,11 +329,16 @@ function renderList() {
     card.innerHTML = `
       <div class="loc-header">
         <div class="loc-num" style="background:${COLORS[i%COLORS.length]}">${i+1}</div>
-        <input class="loc-name-input" type="text" value="${loc.name}" onchange="locs[${i}].name=this.value;saveData()">
+        <div class="loc-name-wrap">
+          <input class="loc-name-input" type="text" value="${loc.name}" placeholder="현장 이름 입력"
+            onchange="locs[${i}].name=this.value;saveData()"
+            oninput="locs[${i}].name=this.value;saveData()">
+          <div class="edit-hint">이름을 수정할 수 있어요</div>
+        </div>
         <button class="btn-rm" onclick="removeLoc(${loc.id})">×</button>
       </div>
       <div class="addr-wrap">
-        <input type="text" id="addr-${loc.id}" class="loc-addr-input" placeholder="주소 검색..." value="${loc.addr}" autocomplete="off" style="width:100%;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;outline:none;">
+        <input type="text" id="addr-${loc.id}" class="loc-addr-field" placeholder="주소 검색..." value="${loc.addr}" autocomplete="off">
         <div class="dropdown" id="dropdown-${loc.id}"></div>
       </div>
       <div class="loc-footer">
@@ -245,81 +348,60 @@ function renderList() {
       </div>
     `;
     el.appendChild(card);
-
-    const locIndex = i;
+    const idx = i;
     setTimeout(() => {
-      setupAddrSearch(`addr-${loc.id}`, `dropdown-${loc.id}`, function(addr) {
-        locs[locIndex].addr = addr;
-        saveData();
-      });
-      document.getElementById(`addr-${loc.id}`).addEventListener('change', function() {
-        locs[locIndex].addr = this.value;
-        saveData();
-      });
+      setupAddrSearch(`addr-${loc.id}`,`dropdown-${loc.id}`,addr=>{ locs[idx].addr=addr; saveData(); });
+      const inp = document.getElementById(`addr-${loc.id}`);
+      if(inp) inp.addEventListener('change',function(){ locs[idx].addr=this.value; saveData(); });
     }, 0);
   });
 }
 
 function addLoc() { locs.push({id:nextId++,name:`현장 ${locs.length+1}`,addr:'',dur:60}); renderList(); saveData(); }
 function removeLoc(id) { if(locs.length<=1) return alert('현장은 최소 1개 필요해요.'); locs=locs.filter(l=>l.id!==id); renderList(); saveData(); }
-
 function addMins(t,m) { const [h,mm]=t.split(':').map(Number),tot=h*60+mm+m; return `${String(Math.floor(tot/60)%24).padStart(2,'0')}:${String(tot%60).padStart(2,'0')}`; }
 function fmtMins(m) { return m<60?`${m}분`:`${Math.floor(m/60)}시간${m%60>0?' '+m%60+'분':''}`; }
 
 function estimateMins(a,b) {
   const R=6371,dLat=(b.lat-a.lat)*Math.PI/180,dLng=(b.lng-a.lng)*Math.PI/180;
   const x=Math.sin(dLat/2)**2+Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dLng/2)**2;
-  return Math.max(5, Math.round(R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x))/30*60));
+  return Math.max(5,Math.round(R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x))/30*60));
 }
 
-async function getRealDrivingMins(a, b) {
+// Directions API - 이동시간 + 실제 경로 좌표 반환
+async function getDirections(a, b) {
   try {
     const res = await fetch(`/api/directions?origin=${a.lng},${a.lat}&destination=${b.lng},${b.lat}`);
     const data = await res.json();
     if (data.routes && data.routes[0]) {
-      return Math.round(data.routes[0].summary.duration / 60);
+      const route = data.routes[0];
+      const duration = Math.round(route.summary.duration / 60);
+      // 경로 좌표 추출
+      const path = [];
+      if (route.sections) {
+        route.sections.forEach(section => {
+          if (section.roads) {
+            section.roads.forEach(road => {
+              if (road.vertexes) {
+                for (let i=0; i<road.vertexes.length; i+=2) {
+                  path.push(new kakao.maps.LatLng(road.vertexes[i+1], road.vertexes[i]));
+                }
+              }
+            });
+          }
+        });
+      }
+      return { duration, path };
     }
   } catch(e) {}
-  return estimateMins(a, b);
-}
-
-async function findOrder(coords) {
-  const n=coords.length-1, visited=new Set([0]), order=[];
-  let cur=0;
-  while(order.length<n) {
-    let best=-1,bestD=Infinity;
-    for(let j=1;j<=n;j++) {
-      if(!visited.has(j)){
-        const d=estimateMins(coords[cur],coords[j]);
-        if(d<bestD){bestD=d;best=j;}
-      }
-    }
-    visited.add(best); order.push(best); cur=best;
-  }
-  return order;
-}
-
-async function buildTravelMatrix(coords) {
-  const n = coords.length;
-  const matrix = Array.from({length:n}, ()=>Array(n).fill(0));
-  const promises = [];
-  for(let i=0;i<n;i++) {
-    for(let j=0;j<n;j++) {
-      if(i!==j) promises.push(
-        getRealDrivingMins(coords[i], coords[j]).then(m => { matrix[i][j]=m; })
-      );
-    }
-  }
-  await Promise.all(promises);
-  return matrix;
+  return { duration: estimateMins(a,b), path: [new kakao.maps.LatLng(a.lat,a.lng), new kakao.maps.LatLng(b.lat,b.lng)] };
 }
 
 function geocodeAddr(addr) {
   return new Promise((res,rej) => {
-    geocoder.addressSearch(addr, (r,s) => {
-      if(s===kakao.maps.services.Status.OK) { res({lat:parseFloat(r[0].y),lng:parseFloat(r[0].x)}); return; }
-      const ps = new kakao.maps.services.Places();
-      ps.keywordSearch(addr, (r2,s2) => {
+    geocoder.addressSearch(addr,(r,s)=>{
+      if(s===kakao.maps.services.Status.OK){res({lat:parseFloat(r[0].y),lng:parseFloat(r[0].x)});return;}
+      new kakao.maps.services.Places().keywordSearch(addr,(r2,s2)=>{
         if(s2===kakao.maps.services.Status.OK) res({lat:parseFloat(r2[0].y),lng:parseFloat(r2[0].x)});
         else rej(new Error(`주소 못 찾음: ${addr}`));
       });
@@ -328,122 +410,203 @@ function geocodeAddr(addr) {
 }
 
 function clearMap() {
-  customOverlays.forEach(o=>o.setMap(null));
-  polylines.forEach(p=>p.setMap(null));
-  customOverlays=[]; polylines=[];
+  [...customOverlays,...polylines,...infoOverlays].forEach(o=>o.setMap(null));
+  customOverlays=[]; polylines=[]; infoOverlays=[];
 }
 
-function drawMap(coords, order) {
+function drawMap(allCoords, order, destCoord, segs) {
   clearMap();
-  const stops=[coords[0],...order.map(i=>coords[i])];
-  for(let i=0;i<stops.length-1;i++) {
-    polylines.push(new kakao.maps.Polyline({map,path:[new kakao.maps.LatLng(stops[i].lat,stops[i].lng),new kakao.maps.LatLng(stops[i+1].lat,stops[i+1].lng)],strokeWeight:5,strokeColor:COLORS[i%COLORS.length],strokeOpacity:0.85,strokeStyle:'solid'}));
-  }
-  polylines.push(new kakao.maps.Polyline({map,path:[new kakao.maps.LatLng(stops[stops.length-1].lat,stops[stops.length-1].lng),new kakao.maps.LatLng(stops[0].lat,stops[0].lng)],strokeWeight:4,strokeColor:'#aaa',strokeOpacity:0.6,strokeStyle:'dashed'}));
-  stops.forEach((c,i)=>{
-    const color=i===0?'#444':COLORS[(i-1)%COLORS.length],label=i===0?'집':String(i);
-    customOverlays.push(new kakao.maps.CustomOverlay({map,position:new kakao.maps.LatLng(c.lat,c.lng),content:`<div style="background:${color};color:white;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3)">${label}</div>`,yAnchor:0.5,xAnchor:0.5}));
+  const locStops = order.map(i=>allCoords[i]);
+  const stops = [allCoords[0], ...locStops, destCoord];
+
+  // 실제 도로 경로선
+  segs.forEach((seg, i) => {
+    const color = i < segs.length-1 ? COLORS[i%COLORS.length] : '#888';
+    if (seg.path && seg.path.length > 1) {
+      polylines.push(new kakao.maps.Polyline({
+        map, path: seg.path, strokeWeight:5, strokeOpacity:0.9,
+        strokeColor: color, strokeStyle:'solid'
+      }));
+    }
+    // 구간 중간 이동시간 라벨
+    const mid = seg.path && seg.path.length > 1
+      ? seg.path[Math.floor(seg.path.length/2)]
+      : new kakao.maps.LatLng((stops[i].lat+stops[i+1].lat)/2, (stops[i].lng+stops[i+1].lng)/2);
+    infoOverlays.push(new kakao.maps.CustomOverlay({
+      map, position: mid,
+      content:`<div style="background:rgba(255,255,255,0.93);border:1px solid #ddd;border-radius:10px;padding:3px 8px;font-size:11px;font-weight:600;color:#444;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,0.15)">🚗 ${fmtMins(seg.duration)}</div>`,
+      yAnchor:1.8
+    }));
   });
-  const bounds=new kakao.maps.LatLngBounds();
+
+  // 마커 + 말풍선
+  stops.forEach((c, i) => {
+    const isHome=i===0, isDest=i===stops.length-1;
+    const isWork = !isHome && !isDest;
+    const color = isHome||isDest ? '#444' : COLORS[(i-1)%COLORS.length];
+    const label = isHome?'집':isDest?'도착':String(i);
+    customOverlays.push(new kakao.maps.CustomOverlay({
+      map, position: new kakao.maps.LatLng(c.lat,c.lng),
+      content:`<div style="background:${color};color:white;width:${isHome||isDest?32:28}px;height:${isHome||isDest?32:28}px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:${isHome||isDest?11:12}px;font-weight:700;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3)">${label}</div>`,
+      yAnchor:0.5, xAnchor:0.5
+    }));
+    if (isWork && segs[i] && segs[i].stepInfo) {
+      const s = segs[i].stepInfo;
+      infoOverlays.push(new kakao.maps.CustomOverlay({
+        map, position: new kakao.maps.LatLng(c.lat,c.lng),
+        content:`<div style="background:white;border:1.5px solid ${color};border-radius:10px;padding:6px 10px;font-size:11px;line-height:1.7;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.15)"><div style="font-weight:700;color:${color}">${s.name}</div><div style="color:#555">도착 ${s.arrive} · 완료 ${s.done}</div><div style="color:#888">작업 ${fmtMins(s.dur)}</div></div>`,
+        yAnchor:3.4, xAnchor:0.5
+      }));
+    }
+  });
+
+  const bounds = new kakao.maps.LatLngBounds();
   stops.forEach(c=>bounds.extend(new kakao.maps.LatLng(c.lat,c.lng)));
   map.setBounds(bounds);
 }
 
-function renderTimeline(dep, order, coords) {
-  const totalWork=locs.reduce((s,l)=>s+l.dur,0);
-  const all=[coords[0],...order.map(i=>coords[i])];
-  let totalTravel=0;
-  for(let i=0;i<all.length-1;i++) totalTravel+=estimateMins(all[i],all[i+1]);
-  totalTravel+=estimateMins(all[all.length-1],coords[0]);
-  document.getElementById('stats').innerHTML=`<div class="stat"><div class="stat-val">${fmtMins(totalTravel)}</div><div class="stat-lbl">총 이동시간</div></div><div class="stat"><div class="stat-val">${fmtMins(totalWork)}</div><div class="stat-lbl">총 작업시간</div></div><div class="stat"><div class="stat-val">${addMins(dep,totalTravel+totalWork)}</div><div class="stat-lbl">예상 귀가</div></div>`;
-  const tlEl=document.getElementById('timeline'); tlEl.innerHTML='';
-  let ct=dep;
-  const steps=[{name:'출발',detail:document.getElementById('home-addr').value,color:'#444'}];
-  order.forEach((idx,i)=>{
-    const travel=estimateMins(i===0?coords[0]:coords[order[i-1]],coords[idx]);
-    ct=addMins(ct,travel); const arrive=ct;
-    const loc=locs[idx-1]; ct=addMins(ct,loc.dur);
-    steps.push({name:loc.name,detail:`도착 ${arrive} · 작업 ${fmtMins(loc.dur)} · 완료 ${ct}`,travelInfo:`이동 ${fmtMins(travel)}`,color:COLORS[i%COLORS.length]});
+function buildShareText() {
+  if (!lastResult) return '';
+  const {dep,steps,totalTravel,totalWork} = lastResult;
+  let t = `📋 오늘 청소 동선\n출발: ${dep}\n\n`;
+  steps.forEach((s,i) => {
+    if(i===0){t+=`🏠 ${s.name}: ${s.detail}\n`;return;}
+    if(i===steps.length-1){t+=`\n🏁 ${s.name}: ${s.detail}\n`;return;}
+    t+=`📍 ${s.name} ${s.travelInfo||''}\n   ${s.detail}\n`;
   });
-  const lt=estimateMins(coords[order[order.length-1]],coords[0]); ct=addMins(ct,lt);
-  steps.push({name:'귀가',detail:`도착 ${ct} · 이동 ${fmtMins(lt)}`,color:'#444'});
-  steps.forEach((s,si)=>{
-    const isLast=si===steps.length-1,div=document.createElement('div'); div.className='tl-item';
-    div.innerHTML=`<div class="tl-left"><div class="tl-dot" style="background:${s.color}"></div>${!isLast?'<div class="tl-line"></div>':''}</div><div class="tl-body"><div class="tl-name">${s.name}${s.travelInfo?` <span style="font-size:11px;color:var(--text-muted);font-weight:400">(${s.travelInfo})</span>`:''}</div><div class="tl-detail">${s.detail}</div></div>`;
-    tlEl.appendChild(div);
+  t+=`\n⏱ 이동 ${fmtMins(totalTravel)} + 작업 ${fmtMins(totalWork)}`;
+  return t;
+}
+
+function shareKakao() {
+  if (!lastResult) return alert('먼저 동선을 계산해주세요.');
+  if (window.Kakao && Kakao.isInitialized()) {
+    try {
+      Kakao.Share.sendDefault({ objectType:'text', text:buildShareText(), link:{mobileWebUrl:location.href,webUrl:location.href} });
+      return;
+    } catch(e) {}
+  }
+  copyText(); showToast('카카오톡을 열어 붙여넣기 하세요!');
+}
+
+function copyText() {
+  if (!lastResult) return alert('먼저 동선을 계산해주세요.');
+  const text = buildShareText();
+  navigator.clipboard.writeText(text).then(()=>showToast('📋 텍스트 복사됨!')).catch(()=>{
+    const ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+    showToast('📋 텍스트 복사됨!');
   });
-  document.getElementById('result-section').classList.add('show');
+}
+
+function copyLink() {
+  if (!lastResult) return alert('먼저 동선을 계산해주세요.');
+  navigator.clipboard.writeText(location.href).then(()=>showToast('🔗 링크 복사됨!')).catch(()=>showToast('링크: '+location.href));
 }
 
 async function calculate() {
-  const homeAddr=document.getElementById('home-addr').value.trim(), dep=document.getElementById('departure').value;
+  const homeAddr=document.getElementById('home-addr').value.trim();
+  const dep=document.getElementById('departure').value;
+  const sameDest=document.getElementById('same-dest').checked;
+  const destAddr=sameDest?homeAddr:document.getElementById('dest-addr').value.trim();
   if(!homeAddr) return alert('출발지 주소를 입력해주세요.');
+  if(!sameDest&&!destAddr) return alert('도착지 주소를 입력해주세요.');
   const empty=locs.find(l=>!l.addr.trim());
   if(empty) return alert(`"${empty.name}"의 주소를 입력해주세요.`);
+
   document.getElementById('btn-calc').disabled=true;
   document.getElementById('loading').classList.add('show');
   document.getElementById('error-msg').classList.remove('show');
   document.getElementById('result-section').classList.remove('show');
+
   try {
+    document.getElementById('loading-text').textContent='주소 변환 중...';
     const homeCoord=await geocodeAddr(homeAddr);
+    const destCoord=sameDest?homeCoord:await geocodeAddr(destAddr);
     const locCoords=await Promise.all(locs.map(l=>geocodeAddr(l.addr)));
     const allCoords=[homeCoord,...locCoords];
-    document.querySelector('.loading-bar span').textContent='실제 도로 이동시간 계산 중...';
-    const matrix=await buildTravelMatrix(allCoords);
-    // 매트릭스 기반 최적 순서
-    const n=allCoords.length-1;
+
+    document.getElementById('loading-text').textContent='실제 경로 계산 중...';
+
+    // 모든 구간 directions 호출
+    const n=locCoords.length;
+    const dirMatrix = Array.from({length:n+1},()=>Array(n+1).fill(null));
+    const promises=[];
+    for(let i=0;i<=n;i++) for(let j=0;j<=n;j++) {
+      if(i!==j) promises.push(getDirections(allCoords[i],allCoords[j]).then(d=>{dirMatrix[i][j]=d;}));
+    }
+    await Promise.all(promises);
+
+    // 마지막 → 도착지 directions
+    const toDestDirs = await Promise.all(locCoords.map(c=>getDirections(c,destCoord)));
+
+    // 최적 순서
     const visited=new Set([0]); const order=[];
     let cur=0;
     while(order.length<n){
       let best=-1,bestD=Infinity;
-      for(let j=1;j<=n;j++){if(!visited.has(j)&&matrix[cur][j]<bestD){bestD=matrix[cur][j];best=j;}}
+      for(let j=1;j<=n;j++){if(!visited.has(j)&&dirMatrix[cur][j].duration<bestD){bestD=dirMatrix[cur][j].duration;best=j;}}
       visited.add(best);order.push(best);cur=best;
     }
-    drawMap(allCoords,order);
-    // 타임라인 렌더링 (매트릭스 사용)
+
+    // 타임라인 + 지도 데이터 구성
     const totalWork=locs.reduce((s,l)=>s+l.dur,0);
-    let totalTravel=0;
-    for(let i=0;i<order.length;i++) totalTravel+=matrix[i===0?0:order[i-1]][order[i]];
-    totalTravel+=matrix[order[order.length-1]][0];
-    document.getElementById('stats').innerHTML=`<div class="stat"><div class="stat-val">${fmtMins(totalTravel)}</div><div class="stat-lbl">총 이동시간</div></div><div class="stat"><div class="stat-val">${fmtMins(totalWork)}</div><div class="stat-lbl">총 작업시간</div></div><div class="stat"><div class="stat-val">${addMins(dep,totalTravel+totalWork)}</div><div class="stat-lbl">예상 귀가</div></div>`;
-    const tlEl=document.getElementById('timeline');tlEl.innerHTML='';
-    let ct=dep;
+    let totalTravel=0, ct=dep;
+    const segs=[]; // 지도용 구간 데이터
+    const stepInfo=[];
+
+    for(let i=0;i<order.length;i++){
+      const from=i===0?0:order[i-1];
+      const dir=dirMatrix[from][order[i]];
+      totalTravel+=dir.duration; ct=addMins(ct,dir.duration);
+      const arrive=ct; const loc=locs[order[i]-1]; ct=addMins(ct,loc.dur);
+      stepInfo.push({name:loc.name,arrive,done:ct,dur:loc.dur});
+      segs.push({...dir, stepInfo:stepInfo[i]});
+    }
+    const lastDir=toDestDirs[order[order.length-1]-1];
+    totalTravel+=lastDir.duration; ct=addMins(ct,lastDir.duration);
+    segs.push(lastDir);
+
+    drawMap(allCoords,order,destCoord,segs);
+
+    document.getElementById('stats').innerHTML=`
+      <div class="stat"><div class="stat-val">${fmtMins(totalTravel)}</div><div class="stat-lbl">총 이동시간</div></div>
+      <div class="stat"><div class="stat-val">${fmtMins(totalWork)}</div><div class="stat-lbl">총 작업시간</div></div>
+      <div class="stat"><div class="stat-val">${ct}</div><div class="stat-lbl">${sameDest?'예상 귀가':'도착 예상'}</div></div>
+    `;
+
     const steps=[{name:'출발',detail:homeAddr,color:'#444'}];
-    order.forEach((idx,i)=>{
-      const travel=matrix[i===0?0:order[i-1]][idx];
-      ct=addMins(ct,travel);const arrive=ct;
-      const loc=locs[idx-1];ct=addMins(ct,loc.dur);
-      steps.push({name:loc.name,detail:`도착 ${arrive} · 작업 ${fmtMins(loc.dur)} · 완료 ${ct}`,travelInfo:`이동 ${fmtMins(travel)}`,color:COLORS[i%COLORS.length]});
+    stepInfo.forEach((s,i)=>{
+      steps.push({name:s.name,detail:`도착 ${s.arrive} · 작업 ${fmtMins(s.dur)} · 완료 ${s.done}`,travelInfo:`이동 ${fmtMins(segs[i].duration)}`,color:COLORS[i%COLORS.length]});
     });
-    const lt=matrix[order[order.length-1]][0];ct=addMins(ct,lt);
-    steps.push({name:'귀가',detail:`도착 ${ct} · 이동 ${fmtMins(lt)}`,color:'#444'});
+    steps.push({name:sameDest?'귀가':'도착',detail:`${ct} 도착 · 이동 ${fmtMins(lastDir.duration)}`,color:'#444'});
+    lastResult={dep,steps,totalTravel,totalWork,sameDest};
+
+    const tlEl=document.getElementById('timeline'); tlEl.innerHTML='';
     steps.forEach((s,si)=>{
-      const isLast=si===steps.length-1,div=document.createElement('div');div.className='tl-item';
+      const isLast=si===steps.length-1,div=document.createElement('div'); div.className='tl-item';
       div.innerHTML=`<div class="tl-left"><div class="tl-dot" style="background:${s.color}"></div>${!isLast?'<div class="tl-line"></div>':''}</div><div class="tl-body"><div class="tl-name">${s.name}${s.travelInfo?` <span style="font-size:11px;color:var(--text-muted);font-weight:400">(${s.travelInfo})</span>`:''}</div><div class="tl-detail">${s.detail}</div></div>`;
       tlEl.appendChild(div);
     });
     document.getElementById('result-section').classList.add('show');
+    if(window.innerWidth<=768) document.getElementById('result-section').scrollIntoView({behavior:'smooth'});
+
   } catch(e) {
     const errEl=document.getElementById('error-msg'); errEl.textContent=`오류: ${e.message}`; errEl.classList.add('show');
   } finally {
     document.getElementById('btn-calc').disabled=false;
     document.getElementById('loading').classList.remove('show');
+    document.getElementById('loading-text').textContent='경로 계산 중...';
   }
 }
 
-(function() {
-  const script = document.createElement('script');
-  script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${KAKAO_KEY}&libraries=services&autoload=false`;
-  script.onload = function() {
-    kakao.maps.load(function() {
-      loadData();
-      initMap();
-      renderList();
-      document.getElementById('home-addr').addEventListener('change', saveData);
-      document.getElementById('departure').addEventListener('change', saveData);
-    });
-  };
-  document.head.appendChild(script);
+(function(){
+  const s=document.createElement('script');
+  s.src=`https://dapi.kakao.com/v2/maps/sdk.js?appkey=${KAKAO_KEY}&libraries=services&autoload=false`;
+  s.onload=()=>kakao.maps.load(()=>{ loadData(); initMap(); renderList();
+    document.getElementById('home-addr').addEventListener('change',saveData);
+    document.getElementById('departure').addEventListener('change',saveData);
+  });
+  document.head.appendChild(s);
 })();
 </script>
 </body>
