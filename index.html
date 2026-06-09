@@ -59,21 +59,8 @@ header { background: var(--accent); padding: 0 20px; height: 56px; display: flex
 .loc-card { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px; background: var(--surface); }
 .loc-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
 .loc-num { width: 28px; height: 28px; border-radius: 50%; color: white; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-/* 현장명 입력 - 수정 가능하게 */
 .loc-name-wrap { flex: 1; position: relative; }
-.loc-name-input {
-  width: 100%;
-  border: none;
-  border-bottom: 1.5px solid transparent;
-  padding: 2px 4px;
-  font-size: 15px;
-  font-weight: 600;
-  background: transparent;
-  outline: none;
-  color: var(--text);
-  cursor: text;
-  transition: border-color 0.15s;
-}
+.loc-name-input { width: 100%; border: none; border-bottom: 1.5px solid transparent; padding: 2px 4px; font-size: 15px; font-weight: 600; background: transparent; outline: none; color: var(--text); cursor: text; transition: border-color 0.15s; }
 .loc-name-input:hover { border-bottom-color: var(--border); }
 .loc-name-input:focus { border-bottom-color: var(--accent); background: var(--bg); border-radius: 4px 4px 0 0; }
 .edit-hint { font-size: 10px; color: var(--text-muted); margin-top: 1px; display: none; }
@@ -368,7 +355,6 @@ function estimateMins(a,b) {
   return Math.max(5,Math.round(R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x))/30*60));
 }
 
-// Directions API - 이동시간 + 실제 경로 좌표 반환
 async function getDirections(a, b) {
   try {
     const res = await fetch(`/api/directions?origin=${a.lng},${a.lat}&destination=${b.lng},${b.lat}`);
@@ -376,7 +362,6 @@ async function getDirections(a, b) {
     if (data.routes && data.routes[0]) {
       const route = data.routes[0];
       const duration = Math.round(route.summary.duration / 60);
-      // 경로 좌표 추출
       const path = [];
       if (route.sections) {
         route.sections.forEach(section => {
@@ -419,7 +404,6 @@ function drawMap(allCoords, order, destCoord, segs) {
   const locStops = order.map(i=>allCoords[i]);
   const stops = [allCoords[0], ...locStops, destCoord];
 
-  // 실제 도로 경로선
   segs.forEach((seg, i) => {
     const color = i < segs.length-1 ? COLORS[i%COLORS.length] : '#888';
     if (seg.path && seg.path.length > 1) {
@@ -428,7 +412,6 @@ function drawMap(allCoords, order, destCoord, segs) {
         strokeColor: color, strokeStyle:'solid'
       }));
     }
-    // 구간 중간 이동시간 라벨
     const mid = seg.path && seg.path.length > 1
       ? seg.path[Math.floor(seg.path.length/2)]
       : new kakao.maps.LatLng((stops[i].lat+stops[i+1].lat)/2, (stops[i].lng+stops[i+1].lng)/2);
@@ -439,7 +422,6 @@ function drawMap(allCoords, order, destCoord, segs) {
     }));
   });
 
-  // 마커 + 말풍선
   stops.forEach((c, i) => {
     const isHome=i===0, isDest=i===stops.length-1;
     const isWork = !isHome && !isDest;
@@ -465,6 +447,45 @@ function drawMap(allCoords, order, destCoord, segs) {
   map.setBounds(bounds);
 }
 
+// ─── Static Map URL 생성 (카카오톡 썸네일용) ───
+function buildStaticMapUrl(orderedCoords) {
+  if (!orderedCoords || orderedCoords.length < 2) return null;
+
+  // 중심 좌표
+  const centerLat = orderedCoords.reduce((s,c)=>s+c.lat,0) / orderedCoords.length;
+  const centerLng = orderedCoords.reduce((s,c)=>s+c.lng,0) / orderedCoords.length;
+
+  // 거리 기반 레벨 계산
+  const lats = orderedCoords.map(c=>c.lat);
+  const lngs = orderedCoords.map(c=>c.lng);
+  const latSpan = Math.max(...lats) - Math.min(...lats);
+  const lngSpan = Math.max(...lngs) - Math.min(...lngs);
+  const span = Math.max(latSpan, lngSpan);
+  let level = 7;
+  if (span > 0.5) level = 11;
+  else if (span > 0.2) level = 10;
+  else if (span > 0.08) level = 9;
+  else if (span > 0.03) level = 8;
+  else if (span > 0.01) level = 7;
+  else level = 6;
+
+  // 마커 파라미터 (출발=S, 현장=1~N, 도착=E)
+  const markerHexColors = ['2D6A4F','E76F51','457B9D','E9C46A','6D597A','3A86FF'];
+  const markerParams = orderedCoords.map((c, i) => {
+    const isFirst = i === 0;
+    const isLast = i === orderedCoords.length - 1;
+    const colorHex = (isFirst || isLast) ? '444444' : markerHexColors[(i-1) % markerHexColors.length];
+    const labelChar = isFirst ? 'S' : isLast ? 'E' : String(i);
+    return `markers=color:0x${colorHex}|label:${labelChar}|${c.lat},${c.lng}`;
+  }).join('&');
+
+  return `https://spi.maps.daum.net/map2/map/imageservice`
+    + `?apikey=${KAKAO_KEY}`
+    + `&center=${centerLng},${centerLat}`
+    + `&level=${level}&width=640&height=400`
+    + `&${markerParams}`;
+}
+
 function buildShareText() {
   if (!lastResult) return '';
   const {dep,steps,totalTravel,totalWork} = lastResult;
@@ -478,15 +499,58 @@ function buildShareText() {
   return t;
 }
 
+// ─── 카카오톡 공유 (지도 이미지 포함) ───
 function shareKakao() {
   if (!lastResult) return alert('먼저 동선을 계산해주세요.');
-  if (window.Kakao && Kakao.isInitialized()) {
-    try {
-      Kakao.Share.sendDefault({ objectType:'text', text:buildShareText(), link:{mobileWebUrl:location.href,webUrl:location.href} });
-      return;
-    } catch(e) {}
+
+  if (!window.Kakao || !Kakao.isInitialized()) {
+    copyText();
+    showToast('카카오톡을 열어 붙여넣기 하세요!');
+    return;
   }
-  copyText(); showToast('카카오톡을 열어 붙여넣기 하세요!');
+
+  const { steps, totalTravel, totalWork, sameDest, orderedCoords } = lastResult;
+  const destStep = steps[steps.length - 1];
+  const locCount = steps.length - 2;
+
+  // 현장 목록 한 줄 요약
+  const locNames = steps.slice(1, -1).map(s => s.name).join(' → ');
+
+  // 완료 시각 추출 (타임라인 마지막 detail에서)
+  const finishTime = destStep.detail.split(' ')[0];
+
+  // Static Map 이미지 URL
+  const mapImageUrl = buildStaticMapUrl(orderedCoords);
+
+  try {
+    Kakao.Share.sendDefault({
+      objectType: 'feed',
+      content: {
+        title: `🧹 오늘의 청소 동선 (현장 ${locCount}곳)`,
+        description: `${locNames}\n⏱ 이동 ${fmtMins(totalTravel)} | 작업 ${fmtMins(totalWork)} | ${sameDest ? '귀가' : '완료'} ${finishTime}`,
+        imageUrl: mapImageUrl,
+        imageWidth: 640,
+        imageHeight: 400,
+        link: {
+          mobileWebUrl: location.href,
+          webUrl: location.href
+        }
+      },
+      buttons: [
+        {
+          title: '동선 확인하기',
+          link: {
+            mobileWebUrl: location.href,
+            webUrl: location.href
+          }
+        }
+      ]
+    });
+  } catch(e) {
+    // 실패 시 텍스트 fallback
+    copyText();
+    showToast('카카오톡을 열어 붙여넣기 하세요!');
+  }
 }
 
 function copyText() {
@@ -527,7 +591,6 @@ async function calculate() {
 
     document.getElementById('loading-text').textContent='실제 경로 계산 중...';
 
-    // 모든 구간 directions 호출
     const n=locCoords.length;
     const dirMatrix = Array.from({length:n+1},()=>Array(n+1).fill(null));
     const promises=[];
@@ -536,10 +599,8 @@ async function calculate() {
     }
     await Promise.all(promises);
 
-    // 마지막 → 도착지 directions
     const toDestDirs = await Promise.all(locCoords.map(c=>getDirections(c,destCoord)));
 
-    // 최적 순서
     const visited=new Set([0]); const order=[];
     let cur=0;
     while(order.length<n){
@@ -548,10 +609,9 @@ async function calculate() {
       visited.add(best);order.push(best);cur=best;
     }
 
-    // 타임라인 + 지도 데이터 구성
     const totalWork=locs.reduce((s,l)=>s+l.dur,0);
     let totalTravel=0, ct=dep;
-    const segs=[]; // 지도용 구간 데이터
+    const segs=[];
     const stepInfo=[];
 
     for(let i=0;i<order.length;i++){
@@ -568,6 +628,13 @@ async function calculate() {
 
     drawMap(allCoords,order,destCoord,segs);
 
+    // 카카오톡 공유용 순서대로 좌표 저장
+    const orderedCoords = [
+      allCoords[0],
+      ...order.map(i => allCoords[i]),
+      destCoord
+    ];
+
     document.getElementById('stats').innerHTML=`
       <div class="stat"><div class="stat-val">${fmtMins(totalTravel)}</div><div class="stat-lbl">총 이동시간</div></div>
       <div class="stat"><div class="stat-val">${fmtMins(totalWork)}</div><div class="stat-lbl">총 작업시간</div></div>
@@ -579,7 +646,9 @@ async function calculate() {
       steps.push({name:s.name,detail:`도착 ${s.arrive} · 작업 ${fmtMins(s.dur)} · 완료 ${s.done}`,travelInfo:`이동 ${fmtMins(segs[i].duration)}`,color:COLORS[i%COLORS.length]});
     });
     steps.push({name:sameDest?'귀가':'도착',detail:`${ct} 도착 · 이동 ${fmtMins(lastDir.duration)}`,color:'#444'});
-    lastResult={dep,steps,totalTravel,totalWork,sameDest};
+
+    // orderedCoords 포함해서 저장
+    lastResult={dep,steps,totalTravel,totalWork,sameDest,orderedCoords};
 
     const tlEl=document.getElementById('timeline'); tlEl.innerHTML='';
     steps.forEach((s,si)=>{
