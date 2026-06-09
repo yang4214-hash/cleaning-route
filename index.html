@@ -229,6 +229,7 @@ function saveData() {
     localStorage.setItem('cleaning_locs', JSON.stringify(locs));
     localStorage.setItem('cleaning_home', document.getElementById('home-addr').value);
     localStorage.setItem('cleaning_dep', document.getElementById('departure').value);
+    localStorage.setItem('cleaning_buffer', document.getElementById('buffer').value);
     localStorage.setItem('cleaning_same_dest', document.getElementById('same-dest').checked);
     localStorage.setItem('cleaning_dest', document.getElementById('dest-addr').value);
   } catch(e) {}
@@ -239,12 +240,14 @@ function loadData() {
     const saved = localStorage.getItem('cleaning_locs');
     const home = localStorage.getItem('cleaning_home');
     const dep = localStorage.getItem('cleaning_dep');
+    const buffer = localStorage.getItem('cleaning_buffer');
     const sameDest = localStorage.getItem('cleaning_same_dest');
     const dest = localStorage.getItem('cleaning_dest');
     if (saved) { locs = JSON.parse(saved); nextId = locs.length ? Math.max(...locs.map(l=>l.id))+1 : 1; }
     else { locs = [{id:1,name:'A 현장',addr:'',dur:60},{id:2,name:'B 현장',addr:'',dur:60}]; nextId = 3; }
     if (home) document.getElementById('home-addr').value = home;
     if (dep) document.getElementById('departure').value = dep;
+    if (buffer) document.getElementById('buffer').value = buffer;
     if (sameDest === 'false') {
       document.getElementById('same-dest').checked = false;
       document.getElementById('dest-field').style.display = 'block';
@@ -307,6 +310,14 @@ function initMap() {
   setupAddrSearch('dest-addr','dest-dropdown',()=>saveData());
 }
 
+function updateLocField(id, key, value) {
+  const target = locs.find(l => l.id === id);
+  if (target) {
+    target[key] = value;
+    saveData();
+  }
+}
+
 function renderList() {
   const el = document.getElementById('loc-list');
   el.innerHTML = '';
@@ -318,8 +329,7 @@ function renderList() {
         <div class="loc-num" style="background:${COLORS[i%COLORS.length]}">${i+1}</div>
         <div class="loc-name-wrap">
           <input class="loc-name-input" type="text" value="${loc.name}" placeholder="현장 이름 입력"
-            onchange="locs[${i}].name=this.value;saveData()"
-            oninput="locs[${i}].name=this.value;saveData()">
+            oninput="updateLocField(${loc.id}, 'name', this.value)">
           <div class="edit-hint">이름을 수정할 수 있어요</div>
         </div>
         <button class="btn-rm" onclick="removeLoc(${loc.id})">×</button>
@@ -330,16 +340,22 @@ function renderList() {
       </div>
       <div class="loc-footer">
         <label>작업시간</label>
-        <input class="dur-input" type="number" value="${loc.dur}" min="5" max="480" onchange="locs[${i}].dur=parseInt(this.value)||0;saveData()">
+        <input class="dur-input" type="number" value="${loc.dur}" min="5" max="480" onchange="updateLocField(${loc.id}, 'dur', parseInt(this.value)||0)">
         <label>분</label>
       </div>
     `;
     el.appendChild(card);
-    const idx = i;
+    
     setTimeout(() => {
-      setupAddrSearch(`addr-${loc.id}`,`dropdown-${loc.id}`,addr=>{ locs[idx].addr=addr; saveData(); });
+      setupAddrSearch(`addr-${loc.id}`, `dropdown-${loc.id}`, addr => {
+        updateLocField(loc.id, 'addr', addr);
+      });
       const inp = document.getElementById(`addr-${loc.id}`);
-      if(inp) inp.addEventListener('change',function(){ locs[idx].addr=this.value; saveData(); });
+      if(inp) {
+        inp.addEventListener('change', function() {
+          updateLocField(loc.id, 'addr', this.value);
+        });
+      }
     }, 0);
   });
 }
@@ -447,15 +463,12 @@ function drawMap(allCoords, order, destCoord, segs) {
   map.setBounds(bounds);
 }
 
-// ─── Static Map URL 생성 (카카오톡 썸네일용) ───
 function buildStaticMapUrl(orderedCoords) {
   if (!orderedCoords || orderedCoords.length < 2) return null;
 
-  // 중심 좌표
   const centerLat = orderedCoords.reduce((s,c)=>s+c.lat,0) / orderedCoords.length;
   const centerLng = orderedCoords.reduce((s,c)=>s+c.lng,0) / orderedCoords.length;
 
-  // 거리 기반 레벨 계산
   const lats = orderedCoords.map(c=>c.lat);
   const lngs = orderedCoords.map(c=>c.lng);
   const latSpan = Math.max(...lats) - Math.min(...lats);
@@ -469,7 +482,6 @@ function buildStaticMapUrl(orderedCoords) {
   else if (span > 0.01) level = 7;
   else level = 6;
 
-  // 마커 파라미터 (출발=S, 현장=1~N, 도착=E)
   const markerHexColors = ['2D6A4F','E76F51','457B9D','E9C46A','6D597A','3A86FF'];
   const markerParams = orderedCoords.map((c, i) => {
     const isFirst = i === 0;
@@ -499,7 +511,6 @@ function buildShareText() {
   return t;
 }
 
-// ─── 카카오톡 공유 (지도 이미지 포함) ───
 function shareKakao() {
   if (!lastResult) return alert('먼저 동선을 계산해주세요.');
 
@@ -512,14 +523,8 @@ function shareKakao() {
   const { steps, totalTravel, totalWork, sameDest, orderedCoords } = lastResult;
   const destStep = steps[steps.length - 1];
   const locCount = steps.length - 2;
-
-  // 현장 목록 한 줄 요약
   const locNames = steps.slice(1, -1).map(s => s.name).join(' → ');
-
-  // 완료 시각 추출 (타임라인 마지막 detail에서)
   const finishTime = destStep.detail.split(' ')[0];
-
-  // Static Map 이미지 URL
   const mapImageUrl = buildStaticMapUrl(orderedCoords);
 
   try {
@@ -547,7 +552,6 @@ function shareKakao() {
       ]
     });
   } catch(e) {
-    // 실패 시 텍스트 fallback
     copyText();
     showToast('카카오톡을 열어 붙여넣기 하세요!');
   }
@@ -557,126 +561,4 @@ function copyText() {
   if (!lastResult) return alert('먼저 동선을 계산해주세요.');
   const text = buildShareText();
   navigator.clipboard.writeText(text).then(()=>showToast('📋 텍스트 복사됨!')).catch(()=>{
-    const ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
-    showToast('📋 텍스트 복사됨!');
-  });
-}
-
-function copyLink() {
-  if (!lastResult) return alert('먼저 동선을 계산해주세요.');
-  navigator.clipboard.writeText(location.href).then(()=>showToast('🔗 링크 복사됨!')).catch(()=>showToast('링크: '+location.href));
-}
-
-async function calculate() {
-  const homeAddr=document.getElementById('home-addr').value.trim();
-  const dep=document.getElementById('departure').value;
-  const sameDest=document.getElementById('same-dest').checked;
-  const destAddr=sameDest?homeAddr:document.getElementById('dest-addr').value.trim();
-  if(!homeAddr) return alert('출발지 주소를 입력해주세요.');
-  if(!sameDest&&!destAddr) return alert('도착지 주소를 입력해주세요.');
-  const empty=locs.find(l=>!l.addr.trim());
-  if(empty) return alert(`"${empty.name}"의 주소를 입력해주세요.`);
-
-  document.getElementById('btn-calc').disabled=true;
-  document.getElementById('loading').classList.add('show');
-  document.getElementById('error-msg').classList.remove('show');
-  document.getElementById('result-section').classList.remove('show');
-
-  try {
-    document.getElementById('loading-text').textContent='주소 변환 중...';
-    const homeCoord=await geocodeAddr(homeAddr);
-    const destCoord=sameDest?homeCoord:await geocodeAddr(destAddr);
-    const locCoords=await Promise.all(locs.map(l=>geocodeAddr(l.addr)));
-    const allCoords=[homeCoord,...locCoords];
-
-    document.getElementById('loading-text').textContent='실제 경로 계산 중...';
-
-    const n=locCoords.length;
-    const dirMatrix = Array.from({length:n+1},()=>Array(n+1).fill(null));
-    const promises=[];
-    for(let i=0;i<=n;i++) for(let j=0;j<=n;j++) {
-      if(i!==j) promises.push(getDirections(allCoords[i],allCoords[j]).then(d=>{dirMatrix[i][j]=d;}));
-    }
-    await Promise.all(promises);
-
-    const toDestDirs = await Promise.all(locCoords.map(c=>getDirections(c,destCoord)));
-
-    const visited=new Set([0]); const order=[];
-    let cur=0;
-    while(order.length<n){
-      let best=-1,bestD=Infinity;
-      for(let j=1;j<=n;j++){if(!visited.has(j)&&dirMatrix[cur][j].duration<bestD){bestD=dirMatrix[cur][j].duration;best=j;}}
-      visited.add(best);order.push(best);cur=best;
-    }
-
-    const totalWork=locs.reduce((s,l)=>s+l.dur,0);
-    let totalTravel=0, ct=dep;
-    const segs=[];
-    const stepInfo=[];
-
-    for(let i=0;i<order.length;i++){
-      const from=i===0?0:order[i-1];
-      const dir=dirMatrix[from][order[i]];
-      totalTravel+=dir.duration; ct=addMins(ct,dir.duration);
-      const arrive=ct; const loc=locs[order[i]-1]; ct=addMins(ct,loc.dur);
-      stepInfo.push({name:loc.name,arrive,done:ct,dur:loc.dur});
-      segs.push({...dir, stepInfo:stepInfo[i]});
-    }
-    const lastDir=toDestDirs[order[order.length-1]-1];
-    totalTravel+=lastDir.duration; ct=addMins(ct,lastDir.duration);
-    segs.push(lastDir);
-
-    drawMap(allCoords,order,destCoord,segs);
-
-    // 카카오톡 공유용 순서대로 좌표 저장
-    const orderedCoords = [
-      allCoords[0],
-      ...order.map(i => allCoords[i]),
-      destCoord
-    ];
-
-    document.getElementById('stats').innerHTML=`
-      <div class="stat"><div class="stat-val">${fmtMins(totalTravel)}</div><div class="stat-lbl">총 이동시간</div></div>
-      <div class="stat"><div class="stat-val">${fmtMins(totalWork)}</div><div class="stat-lbl">총 작업시간</div></div>
-      <div class="stat"><div class="stat-val">${ct}</div><div class="stat-lbl">${sameDest?'예상 귀가':'도착 예상'}</div></div>
-    `;
-
-    const steps=[{name:'출발',detail:homeAddr,color:'#444'}];
-    stepInfo.forEach((s,i)=>{
-      steps.push({name:s.name,detail:`도착 ${s.arrive} · 작업 ${fmtMins(s.dur)} · 완료 ${s.done}`,travelInfo:`이동 ${fmtMins(segs[i].duration)}`,color:COLORS[i%COLORS.length]});
-    });
-    steps.push({name:sameDest?'귀가':'도착',detail:`${ct} 도착 · 이동 ${fmtMins(lastDir.duration)}`,color:'#444'});
-
-    // orderedCoords 포함해서 저장
-    lastResult={dep,steps,totalTravel,totalWork,sameDest,orderedCoords};
-
-    const tlEl=document.getElementById('timeline'); tlEl.innerHTML='';
-    steps.forEach((s,si)=>{
-      const isLast=si===steps.length-1,div=document.createElement('div'); div.className='tl-item';
-      div.innerHTML=`<div class="tl-left"><div class="tl-dot" style="background:${s.color}"></div>${!isLast?'<div class="tl-line"></div>':''}</div><div class="tl-body"><div class="tl-name">${s.name}${s.travelInfo?` <span style="font-size:11px;color:var(--text-muted);font-weight:400">(${s.travelInfo})</span>`:''}</div><div class="tl-detail">${s.detail}</div></div>`;
-      tlEl.appendChild(div);
-    });
-    document.getElementById('result-section').classList.add('show');
-    if(window.innerWidth<=768) document.getElementById('result-section').scrollIntoView({behavior:'smooth'});
-
-  } catch(e) {
-    const errEl=document.getElementById('error-msg'); errEl.textContent=`오류: ${e.message}`; errEl.classList.add('show');
-  } finally {
-    document.getElementById('btn-calc').disabled=false;
-    document.getElementById('loading').classList.remove('show');
-    document.getElementById('loading-text').textContent='경로 계산 중...';
-  }
-}
-
-(function(){
-  const s=document.createElement('script');
-  s.src=`https://dapi.kakao.com/v2/maps/sdk.js?appkey=${KAKAO_KEY}&libraries=services&autoload=false`;
-  s.onload=()=>kakao.maps.load(()=>{ loadData(); initMap(); renderList();
-    document.getElementById('home-addr').addEventListener('change',saveData);
-    document.getElementById('departure').addEventListener('change',saveData);
-  });
-  document.head.appendChild(s);
-})();
-</script>
-</body>
-</html>
+    const ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(
