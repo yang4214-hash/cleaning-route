@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>청소 동선 플래너</title>
+<script type="text/javascript" src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpClientId=YOUR_CLIENT_ID&submodules=geocoder"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f5f4f0;
+    --surface: #ffffff;
+    --border: #e2e0d8;
+    --text: #1a1a1a;
+    --text-muted: #7a7870;
+    --accent: #2d6a4f;
+    --accent-light: #e8f4ee;
+    --accent-2: #e76f51;
+    --accent-2-light: #fdf0ec;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --shadow: 0 1px 4px rgba(0,0,0,0.08);
+  }
+
+  body {
+    font-family: 'Noto Sans KR', -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  .logo-icon {
+    width: 30px;
+    height: 30px;
+    background: var(--accent);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .logo-icon svg { fill: white; }
+
+  .header-hint {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .main {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    flex: 1;
+    min-height: 0;
+    height: calc(100vh - 56px);
+  }
+
+  /* ── 좌측 패널 ── */
+  .panel {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .panel-scroll {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+  }
+
+  .panel-scroll::-webkit-scrollbar { width: 4px; }
+  .panel-scroll::-webkit-scrollbar-track { background: transparent; }
+  .panel-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  .section { margin-bottom: 24px; }
+
+  .section-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+
+  .field { margin-bottom: 10px; }
+
+  .field label {
+    display: block;
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+  }
+
+  .field input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    color: var(--text);
+    background: var(--surface);
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  .field input:focus { border-color: var(--accent); }
+
+  .field-row {
+    display: grid;
+    grid-template-columns: 1fr 80px;
+    gap: 8px;
+  }
+
+  /* 현장 카드 */
+  .loc-list { display: flex; flex-direction: column; gap: 8px; }
+
+  .loc-card {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px;
+    background: var(--surface);
+    position: relative;
+  }
+
+  .loc-card.dragging { opacity: 0.5; }
+
+  .loc-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .loc-num {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: white;
+    font-size: 11px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .loc-name-input {
+    flex: 1;
+    border: none !important;
+    padding: 0 !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    background: transparent !important;
+  }
+
+  .loc-name-input:focus { outline: none; }
+
+  .btn-rm {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-muted);
+    font-size: 18px;
+    line-height: 1;
+    padding: 2px;
+    border-radius: 4px;
+  }
+
+  .btn-rm:hover { color: var(--accent-2); background: var(--accent-2-light); }
+
+  .loc-addr-input {
+    width: 100%;
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 13px;
+    margin-bottom: 6px;
+    outline: none;
+  }
+
+  .loc-addr-input:focus { border-color: var(--accent); }
+
+  .loc-footer {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .loc-footer label { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+
+  .dur-input {
+    width: 64px;
+    padding: 4px 8px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 13px;
+    text-align: center;
+    outline: none;
+  }
+
+  .dur-input:focus { border-color: var(--accent); }
+
+  .btn-add {
+    width: 100%;
+    padding: 10px;
+    border: 1.5px dashed var(--border);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .btn-add:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-light);
+  }
+
+  .btn-calc {
+    width: 100%;
+    padding: 13px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: var(--radius);
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+
+  .btn-calc:hover { opacity: 0.88; }
+  .btn-calc:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* ── 결과 타임라인 ── */
+  .result-section {
+    background: var(--bg);
+    border-top: 1px solid var(--border);
+    padding: 16px 20px;
+    display: none;
+  }
+
+  .result-section.show { display: block; }
+
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  .stat {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px;
+    text-align: center;
+  }
+
+  .stat-val {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  .stat-lbl {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+
+  .timeline { display: flex; flex-direction: column; }
+
+  .tl-item {
+    display: flex;
+    gap: 10px;
+  }
+
+  .tl-left {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 20px;
+    flex-shrink: 0;
+  }
+
+  .tl-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-top: 5px;
+    flex-shrink: 0;
+  }
+
+  .tl-line {
+    flex: 1;
+    width: 2px;
+    background: var(--border);
+    min-height: 8px;
+  }
+
+  .tl-body { flex: 1; padding-bottom: 12px; }
+
+  .tl-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .tl-detail {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 2px;
+    line-height: 1.5;
+  }
+
+  /* ── 지도 영역 ── */
+  #map {
+    width: 100%;
+    height: 100%;
+  }
+
+  .map-wrap {
+    position: relative;
+    flex: 1;
+  }
+
+  .map-overlay {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    font-size: 12px;
+    color: var(--text-muted);
+    box-shadow: var(--shadow);
+    z-index: 10;
+    display: none;
+    max-width: 200px;
+  }
+
+  .map-overlay.show { display: block; }
+  .map-overlay strong { color: var(--text); font-size: 13px; display: block; margin-bottom: 4px; }
+
+  .loading-bar {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: var(--accent-light);
+    border-top: 1px solid var(--border);
+    font-size: 13px;
+    color: var(--accent);
+  }
+
+  .loading-bar.show { display: flex; }
+
+  .spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--accent-light);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    flex-shrink: 0;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .error-msg {
+    display: none;
+    padding: 10px 20px;
+    background: var(--accent-2-light);
+    border-top: 1px solid #f5c6bb;
+    font-size: 12px;
+    color: var(--accent-2);
+  }
+
+  .error-msg.show { display: block; }
+
+  @media (max-width: 768px) {
+    .main { grid-template-columns: 1fr; grid-template-rows: auto 1fr; height: auto; }
+    .panel { max-height: 60vh; }
+    .map-wrap { height: 50vh; }
+    header { padding: 0 16px; }
+    .header-hint { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">
+      <svg width="16" height="16" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+    </div>
+    청소 동선 플래너
+  </div>
+  <span class="header-hint">네이버 지도 기반 · 작업시간 포함 최적 동선</span>
+</header>
+
+<div class="main">
+
+  <!-- 좌측 패널 -->
+  <div class="panel">
+    <div class="panel-scroll">
+
+      <div class="section">
+        <div class="section-label">출발 정보</div>
+        <div class="field">
+          <label>출발지 주소</label>
+          <input type="text" id="home-addr" placeholder="예: 성남시 이매동 87-9">
+        </div>
+        <div class="field-row">
+          <div class="field" style="margin:0">
+            <label>출발 시간</label>
+            <input type="time" id="departure" value="09:00">
+          </div>
+          <div class="field" style="margin:0">
+            <label>귀가 여유</label>
+            <input type="text" id="buffer" value="0" placeholder="분" style="text-align:center">
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-label">현장 목록</div>
+        <div class="loc-list" id="loc-list"></div>
+        <button class="btn-add" onclick="addLoc()" style="margin-top:8px">+ 현장 추가</button>
+      </div>
+
+    </div>
+
+    <div class="loading-bar" id="loading">
+      <div class="spinner"></div>
+      <span>경로 계산 중...</span>
+    </div>
+    <div class="error-msg" id="error-msg"></div>
+
+    <div style="padding: 16px 20px; border-top: 1px solid var(--border);">
+      <button class="btn-calc" id="btn-calc" onclick="calculate()">최적 동선 계산하기</button>
+    </div>
+
+    <!-- 결과 타임라인 -->
+    <div class="result-section" id="result-section">
+      <div class="stats" id="stats"></div>
+      <div class="timeline" id="timeline"></div>
+    </div>
+  </div>
+
+  <!-- 지도 -->
+  <div class="map-wrap">
+    <div id="map"></div>
+    <div class="map-overlay" id="map-overlay">
+      <strong>경로 안내</strong>
+      <span id="overlay-text"></span>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── 상태 ──
+let locs = [
+  { id:1, name:'A 현장', addr:'', dur:60 },
+  { id:2, name:'B 현장', addr:'', dur:60 },
+];
+let nextId = 3;
+let map, markers = [], polylines = [], infoWindows = [];
+
+const COLORS = ['#2d6a4f','#e76f51','#457b9d','#e9c46a','#6d597a','#3a86ff','#fb8500','#2ec4b6'];
+
+// ── 지도 초기화 ──
+window.onload = function() {
+  map = new naver.maps.Map('map', {
+    center: new naver.maps.LatLng(37.4563, 127.1313),
+    zoom: 11,
+    mapTypeId: naver.maps.MapTypeId.NORMAL
+  });
+  renderList();
+};
+
+// ── 현장 목록 렌더링 ──
+function renderList() {
+  const el = document.getElementById('loc-list');
+  el.innerHTML = '';
+  locs.forEach((loc, i) => {
+    const card = document.createElement('div');
+    card.className = 'loc-card';
+    card.innerHTML = `
+      <div class="loc-header">
+        <div class="loc-num" style="background:${COLORS[i % COLORS.length]}">${i+1}</div>
+        <input class="loc-name-input" type="text" value="${loc.name}" onchange="locs[${i}].name=this.value">
+        <button class="btn-rm" onclick="removeLoc(${loc.id})">×</button>
+      </div>
+      <input class="loc-addr-input" type="text" placeholder="주소 입력 (도로명/지번)" value="${loc.addr}" onchange="locs[${i}].addr=this.value">
+      <div class="loc-footer">
+        <label>작업시간</label>
+        <input class="dur-input" type="number" value="${loc.dur}" min="5" max="480" onchange="locs[${i}].dur=parseInt(this.value)||0">
+        <label>분</label>
+      </div>
+    `;
+    el.appendChild(card);
+  });
+}
+
+function addLoc() {
+  locs.push({ id: nextId++, name: `현장 ${locs.length+1}`, addr: '', dur: 60 });
+  renderList();
+}
+
+function removeLoc(id) {
+  if (locs.length <= 1) return alert('현장은 최소 1개 필요해요.');
+  locs = locs.filter(l => l.id !== id);
+  renderList();
+}
+
+// ── 시간 유틸 ──
+function addMins(t, m) {
+  const [h, mm] = t.split(':').map(Number);
+  const tot = h*60 + mm + m;
+  return `${String(Math.floor(tot/60)%24).padStart(2,'0')}:${String(tot%60).padStart(2,'0')}`;
+}
+
+function fmtMins(m) {
+  if (m < 60) return `${m}분`;
+  return `${Math.floor(m/60)}시간 ${m%60 > 0 ? (m%60)+'분' : ''}`.trim();
+}
+
+// ── 지오코딩 (주소 → 좌표) ──
+function geocode(addr) {
+  return new Promise((resolve, reject) => {
+    naver.maps.Service.geocode({ query: addr }, (status, res) => {
+      if (status !== naver.maps.Service.Status.OK) return reject(new Error(`주소 검색 실패: ${addr}`));
+      const item = res.v2.addresses[0];
+      if (!item) return reject(new Error(`주소를 찾을 수 없어요: ${addr}`));
+      resolve({ lat: parseFloat(item.y), lng: parseFloat(item.x), roadAddr: item.roadAddress || addr });
+    });
+  });
+}
+
+// ── Directions API 호출 (백엔드 경유) ──
+async function getDirections(start, goal) {
+  const res = await fetch(`/api/directions?start=${start.lng},${start.lat}&goal=${goal.lng},${goal.lat}`);
+  if (!res.ok) throw new Error('경로 계산 실패');
+  const data = await res.json();
+  if (data.code !== 0) throw new Error(data.message || '경로 오류');
+  const route = data.route?.traoptimal?.[0];
+  if (!route) throw new Error('경로 없음');
+  return {
+    duration: Math.round(route.summary.duration / 60000),
+    distance: Math.round(route.summary.distance / 1000 * 10) / 10,
+    path: route.path.map(p => new naver.maps.LatLng(p[1], p[0]))
+  };
+}
+
+// ── 최적 순서 계산 (nearest neighbor) ──
+async function calcOptimalOrder(homeCoord, locCoords) {
+  const n = locCoords.length;
+  const matrix = Array.from({length: n+1}, () => Array(n+1).fill(null));
+  const paths = Array.from({length: n+1}, () => Array(n+1).fill(null));
+  const all = [homeCoord, ...locCoords];
+
+  for (let i = 0; i < all.length; i++) {
+    for (let j = 0; j < all.length; j++) {
+      if (i === j) continue;
+      const r = await getDirections(all[i], all[j]);
+      matrix[i][j] = r.duration;
+      paths[i][j] = r.path;
+    }
+  }
+
+  // 모든 순열 (최대 10개 현장 → 가지치기 포함)
+  const indices = Array.from({length: n}, (_,i) => i+1);
+  let best = null, bestTime = Infinity;
+
+  function permute(arr, current) {
+    if (arr.length === 0) {
+      let t = matrix[0][current[0]];
+      for (let i = 0; i < current.length-1; i++) t += matrix[current[i]][current[i+1]];
+      t += matrix[current[current.length-1]][0];
+      if (t < bestTime) { bestTime = t; best = [...current]; }
+      return;
+    }
+    for (let i = 0; i < arr.length; i++) {
+      const rem = [...arr]; rem.splice(i,1);
+      permute(rem, [...current, arr[i]]);
+    }
+  }
+
+  if (n <= 8) {
+    permute(indices, []);
+  } else {
+    // 8개 초과 시 greedy
+    let cur = 0, visited = new Set([0]), order = [];
+    while (order.length < n) {
+      let next = -1, minT = Infinity;
+      for (let j = 1; j <= n; j++) {
+        if (!visited.has(j) && matrix[cur][j] < minT) { minT = matrix[cur][j]; next = j; }
+      }
+      visited.add(next); order.push(next); cur = next;
+    }
+    best = order;
+  }
+
+  return { order: best, matrix, paths };
+}
+
+// ── 지도 클리어 ──
+function clearMap() {
+  markers.forEach(m => m.setMap(null));
+  polylines.forEach(p => p.setMap(null));
+  infoWindows.forEach(w => w.close());
+  markers = []; polylines = []; infoWindows = [];
+}
+
+// ── 지도에 경로 그리기 ──
+function drawRoute(coords, order, paths, matrix) {
+  clearMap();
+  const allCoords = [coords[0], ...order.map(i => coords[i])];
+
+  // 경로선
+  for (let i = 0; i < allCoords.length - 1; i++) {
+    const from = i === 0 ? 0 : order[i-1];
+    const to = order[i] ?? 0;
+    const pathKey = i === 0 ? `0-${order[0]}` : null;
+    const pathData = i === 0 ? paths[0][order[0]] : paths[order[i-1]][order[i]];
+    if (!pathData) continue;
+
+    const poly = new naver.maps.Polyline({
+      map,
+      path: pathData,
+      strokeColor: COLORS[i % COLORS.length],
+      strokeWeight: 5,
+      strokeOpacity: 0.85
+    });
+    polylines.push(poly);
+  }
+  // 귀가선
+  const lastIdx = order[order.length-1];
+  if (paths[lastIdx] && paths[lastIdx][0]) {
+    const poly = new naver.maps.Polyline({
+      map,
+      path: paths[lastIdx][0],
+      strokeColor: '#aaa',
+      strokeWeight: 4,
+      strokeOpacity: 0.6,
+      strokeStyle: 'shortdash'
+    });
+    polylines.push(poly);
+  }
+
+  // 마커
+  allCoords.forEach((coord, i) => {
+    const isHome = i === 0;
+    const label = isHome ? '🏠' : String(i);
+    const color = isHome ? '#555' : COLORS[(i-1) % COLORS.length];
+
+    const marker = new naver.maps.Marker({
+      map,
+      position: new naver.maps.LatLng(coord.lat, coord.lng),
+      icon: {
+        content: `<div style="
+          background:${color};color:white;
+          width:${isHome?32:28}px;height:${isHome?32:28}px;
+          border-radius:50%;display:flex;align-items:center;justify-content:center;
+          font-size:${isHome?14:12}px;font-weight:700;
+          border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3);
+          cursor:pointer;
+        ">${isHome ? '집' : i}</div>`,
+        anchor: new naver.maps.Point(isHome?16:14, isHome?16:14)
+      }
+    });
+    markers.push(marker);
+  });
+
+  // 지도 범위 맞추기
+  const bounds = new naver.maps.LatLngBounds();
+  allCoords.forEach(c => bounds.extend(new naver.maps.LatLng(c.lat, c.lng)));
+  map.fitBounds(bounds, { top: 60, right: 60, bottom: 60, left: 60 });
+}
+
+// ── 타임라인 렌더링 ──
+function renderTimeline(dep, homeCoord, order, matrix, locData) {
+  const statsEl = document.getElementById('stats');
+  const tlEl = document.getElementById('timeline');
+
+  let cur = dep;
+  let totalTravel = 0;
+  const totalWork = locs.reduce((s,l) => s+l.dur, 0);
+
+  // 총 이동시간 계산
+  let travelSum = matrix[0][order[0]];
+  for (let i = 0; i < order.length-1; i++) travelSum += matrix[order[i]][order[i+1]];
+  travelSum += matrix[order[order.length-1]][0];
+  totalTravel = travelSum;
+
+  const endTime = addMins(dep, totalTravel + totalWork);
+
+  statsEl.innerHTML = `
+    <div class="stat"><div class="stat-val">${fmtMins(totalTravel)}</div><div class="stat-lbl">총 이동시간</div></div>
+    <div class="stat"><div class="stat-val">${fmtMins(totalWork)}</div><div class="stat-lbl">총 작업시간</div></div>
+    <div class="stat"><div class="stat-val">${endTime}</div><div class="stat-lbl">귀가 예상</div></div>
+  `;
+
+  const steps = [];
+  steps.push({ type:'home', name:'출발', detail: document.getElementById('home-addr').value, time: dep, color:'#555' });
+
+  let ct = dep;
+  order.forEach((idx, i) => {
+    const travel = i === 0 ? matrix[0][order[0]] : matrix[order[i-1]][idx];
+    ct = addMins(ct, travel);
+    const arriveTime = ct;
+    const loc = locs[idx-1];
+    ct = addMins(ct, loc.dur);
+    const dist = i === 0
+      ? (locData[0].distance || '').toString()
+      : '';
+    steps.push({
+      type:'work',
+      name: loc.name,
+      detail: `도착 ${arriveTime} · 작업 ${fmtMins(loc.dur)} · 완료 ${ct}`,
+      travelInfo: `이동 ${fmtMins(travel)}`,
+      color: COLORS[(i) % COLORS.length],
+      time: arriveTime
+    });
+  });
+
+  const homeTravelBack = matrix[order[order.length-1]][0];
+  ct = addMins(ct, homeTravelBack);
+  steps.push({ type:'home', name:'귀가', detail: `도착 ${ct} · 이동 ${fmtMins(homeTravelBack)}`, color:'#555', time: ct });
+
+  tlEl.innerHTML = '';
+  steps.forEach((step, si) => {
+    const isLast = si === steps.length-1;
+    const div = document.createElement('div');
+    div.className = 'tl-item';
+    div.innerHTML = `
+      <div class="tl-left">
+        <div class="tl-dot" style="background:${step.color}"></div>
+        ${!isLast ? '<div class="tl-line"></div>' : ''}
+      </div>
+      <div class="tl-body">
+        <div class="tl-name">${step.name}${step.travelInfo ? ` <span style="font-size:11px;color:var(--text-muted);font-weight:400">(${step.travelInfo})</span>` : ''}</div>
+        <div class="tl-detail">${step.detail}</div>
+      </div>
+    `;
+    tlEl.appendChild(div);
+  });
+
+  document.getElementById('result-section').classList.add('show');
+}
+
+// ── 메인 계산 ──
+async function calculate() {
+  const homeAddr = document.getElementById('home-addr').value.trim();
+  const dep = document.getElementById('departure').value;
+
+  if (!homeAddr) return alert('출발지 주소를 입력해주세요.');
+  const emptyLoc = locs.find(l => !l.addr.trim());
+  if (emptyLoc) return alert(`"${emptyLoc.name}"의 주소를 입력해주세요.`);
+
+  document.getElementById('btn-calc').disabled = true;
+  document.getElementById('loading').classList.add('show');
+  document.getElementById('error-msg').classList.remove('show');
+  document.getElementById('result-section').classList.remove('show');
+
+  try {
+    // 지오코딩
+    const homeCoord = await geocode(homeAddr);
+    const locCoords = await Promise.all(locs.map(l => geocode(l.addr)));
+
+    // 최적 순서 계산
+    const { order, matrix, paths } = await calcOptimalOrder(homeCoord, locCoords);
+
+    // 지도에 그리기
+    const allCoords = [homeCoord, ...locCoords];
+    drawRoute(allCoords, order, paths, matrix);
+
+    // 타임라인
+    renderTimeline(dep, homeCoord, order, matrix, locCoords);
+
+    document.getElementById('map-overlay').classList.add('show');
+    document.getElementById('overlay-text').textContent =
+      `추천 순서: ${order.map((i,idx) => `${idx+1}번째 ${locs[i-1].name}`).join(' → ')}`;
+
+  } catch(e) {
+    const errEl = document.getElementById('error-msg');
+    errEl.textContent = `오류: ${e.message}`;
+    errEl.classList.add('show');
+  } finally {
+    document.getElementById('btn-calc').disabled = false;
+    document.getElementById('loading').classList.remove('show');
+  }
+}
+</script>
+</body>
+</html>
