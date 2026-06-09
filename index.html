@@ -26,11 +26,10 @@ header { background: var(--accent); padding: 0 20px; height: 56px; display: flex
 .header-hint { font-size: 11px; color: rgba(255,255,255,0.7); }
 
 /* 요일 탭 */
-.day-tabs { display: flex; background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0; overflow-x: auto; }
-.day-tab { flex: 1; min-width: 44px; padding: 10px 4px; text-align: center; font-size: 12px; font-weight: 600; color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; transition: all 0.15s; }
+.day-tabs { display: flex; background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.day-tab { flex: 1; padding: 10px 4px; text-align: center; font-size: 12px; font-weight: 600; color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; position: relative; }
 .day-tab:hover { color: var(--accent); background: var(--accent-light); }
 .day-tab.active { color: var(--accent); border-bottom-color: var(--accent); background: var(--accent-light); }
-.day-tab.today { position: relative; }
 .day-tab.today::after { content: '●'; position: absolute; top: 3px; right: 4px; font-size: 6px; color: var(--accent-2); }
 
 .main { display: flex; flex: 1; min-height: 0; height: calc(100vh - 56px - 41px); }
@@ -46,6 +45,8 @@ header { background: var(--accent); padding: 0 20px; height: 56px; display: flex
 #map { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
 .map-click-hint { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); background: rgba(45,106,79,0.92); color: white; padding: 7px 16px; border-radius: 20px; font-size: 12px; font-weight: 600; z-index: 10; display: none; pointer-events: none; white-space: nowrap; }
 .map-click-hint.show { display: block; }
+/* 지도 클릭 모드일 때 지도 커서 */
+.map-wrap.pin-cursor #map { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 24 24'%3E%3Cpath fill='%232d6a4f' d='M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z'/%3E%3C/svg%3E") 12 32, crosshair; }
 
 @media (max-width: 768px) {
   .main { flex-direction: column; height: auto; }
@@ -59,6 +60,12 @@ header { background: var(--accent); padding: 0 20px; height: 56px; display: flex
   .mobile-minimap { display: block !important; }
 }
 .mobile-minimap { display: none; margin-bottom: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+
+/* 툴팁 */
+.tooltip-wrap { position: relative; display: inline-flex; align-items: center; }
+.tooltip-wrap .tip { position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); background: #1a1a1a; color: white; font-size: 11px; font-weight: 400; padding: 6px 10px; border-radius: 8px; white-space: nowrap; z-index: 9999; display: none; pointer-events: none; line-height: 1.5; text-align: center; max-width: 220px; white-space: normal; width: max-content; max-width: 200px; }
+.tooltip-wrap .tip::after { content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); border: 5px solid transparent; border-top-color: #1a1a1a; }
+.tooltip-wrap:hover .tip { display: block; }
 
 .section { margin-bottom: 18px; }
 .section-label { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; color: var(--text-muted); text-transform: uppercase; margin-bottom: 10px; }
@@ -163,7 +170,6 @@ header { background: var(--accent); padding: 0 20px; height: 56px; display: flex
   <span class="header-hint">카카오 지도 기반</span>
 </header>
 
-<!-- 요일 탭 -->
 <div class="day-tabs" id="day-tabs">
   <div class="day-tab" data-day="0" onclick="switchDay(0)">월</div>
   <div class="day-tab" data-day="1" onclick="switchDay(1)">화</div>
@@ -177,6 +183,7 @@ header { background: var(--accent); padding: 0 20px; height: 56px; display: flex
 <div class="main">
   <div class="input-panel">
     <div class="input-scroll">
+
       <div class="section">
         <div class="section-label">출발 정보</div>
         <div class="field">
@@ -192,7 +199,10 @@ header { background: var(--accent); padding: 0 20px; height: 56px; display: flex
             <input type="time" id="departure" value="09:00">
           </div>
           <div class="field" style="margin:0">
-            <label>혼잡 보정(%)</label>
+            <div class="tooltip-wrap">
+              <label>혼잡 보정(%)</label>
+              <span class="tip">이동시간에 추가 여유를 곱해요.<br>출퇴근 시간대는 30~50% 추천</span>
+            </div>
             <input type="number" id="buffer" value="0" min="0" max="100" style="text-align:center">
             <div class="field-hint">출퇴근 시간 30~50%</div>
           </div>
@@ -202,17 +212,20 @@ header { background: var(--accent); padding: 0 20px; height: 56px; display: flex
       <div class="section">
         <div class="section-label">도착 정보</div>
         <div class="dest-options">
-          <label class="dest-option">
+          <label class="dest-option tooltip-wrap">
             <input type="radio" name="dest-type" value="home" checked onchange="onDestTypeChange()">
             출발지와 동일 (귀가)
+            <span class="tip">마지막 현장 작업 후 출발지로 돌아와요</span>
           </label>
-          <label class="dest-option">
+          <label class="dest-option tooltip-wrap">
             <input type="radio" name="dest-type" value="last" onchange="onDestTypeChange()">
             마지막 현장이 도착지
+            <span class="tip">마지막 현장에서 작업 완료 후 귀가 이동 없이 종료해요</span>
           </label>
-          <label class="dest-option">
+          <label class="dest-option tooltip-wrap">
             <input type="radio" name="dest-type" value="custom" onchange="onDestTypeChange()">
             별도 도착지 지정
+            <span class="tip">마지막 현장 후 별도로 지정한 주소로 이동해요</span>
           </label>
         </div>
         <div id="dest-field" style="display:none;margin-top:10px;">
@@ -229,12 +242,18 @@ header { background: var(--accent); padding: 0 20px; height: 56px; display: flex
       <div class="section">
         <div class="section-header">
           <div class="section-label">현장 목록</div>
-          <button class="btn-map-add" id="btn-map-add" onclick="toggleMapClick()">📍 지도 추가</button>
+          <div class="tooltip-wrap">
+            <button class="btn-map-add" id="btn-map-add" onclick="toggleMapClick()">📍 지도 추가</button>
+            <span class="tip">버튼 클릭 후 지도를 누르면<br>해당 위치가 현장으로 추가돼요</span>
+          </div>
         </div>
         <div class="loc-list" id="loc-list"></div>
         <div class="btn-row">
           <button class="btn-add" onclick="addLoc()" style="margin:0">+ 현장 추가</button>
-          <button class="btn-tsp" id="btn-tsp" onclick="autoSort()">🔀 최적 순서</button>
+          <div class="tooltip-wrap" style="flex:1">
+            <button class="btn-tsp" id="btn-tsp" onclick="autoSort()" style="width:100%">🔀 최적 순서</button>
+            <span class="tip">현장들을 가장 짧은 이동거리<br>순서로 자동 재배열해요</span>
+          </div>
         </div>
         <div class="save-notice">💾 요일별로 자동 저장됩니다</div>
       </div>
@@ -243,7 +262,10 @@ header { background: var(--accent); padding: 0 20px; height: 56px; display: flex
     <div class="loading-bar" id="loading"><div class="spinner"></div><span id="loading-text">경로 계산 중...</span></div>
     <div class="error-msg" id="error-msg"></div>
     <div style="padding:14px 16px;border-top:1px solid var(--border);flex-shrink:0;">
-      <button class="btn-calc" id="btn-calc" onclick="calculate()">최적 동선 계산하기</button>
+      <div class="tooltip-wrap" style="width:100%">
+        <button class="btn-calc" id="btn-calc" onclick="calculate()" style="width:100%">최적 동선 계산하기</button>
+        <span class="tip">현재 순서대로 실제 도로 기반<br>경로와 시간을 계산해요</span>
+      </div>
     </div>
   </div>
 
@@ -267,9 +289,9 @@ header { background: var(--accent); padding: 0 20px; height: 56px; display: flex
     </div>
   </div>
 
-  <div class="map-wrap">
+  <div class="map-wrap" id="map-wrap">
     <div id="map"></div>
-    <div class="map-click-hint" id="map-click-hint">지도를 클릭하면 현장이 추가됩니다</div>
+    <div class="map-click-hint" id="map-click-hint">📍 지도를 클릭하면 현장이 추가됩니다 (다시 클릭해 종료)</div>
   </div>
 </div>
 
@@ -283,14 +305,16 @@ const COLORS = ['#2d6a4f','#e76f51','#457b9d','#e9c46a','#6d597a','#3a86ff','#fb
 const DAYS = ['월','화','수','목','금','토','일'];
 
 let locs = [], nextId = 1, colorIdx = 0;
-let currentDay = 0; // 0=월 ~ 6=일
+let currentDay = 0;
 let map, customOverlays = [], polylines = [], infoOverlays = [];
 let geocoder;
 let lastResult = null;
 let deferredPrompt = null;
 let mapClickMode = false;
 let sortable = null;
-let mapReady = false;
+
+// 요일별 상태 캐시 (탭 전환 시 메모리에 유지)
+let dayCache = {}; // { 0: {locs, home, dep, buf, destType, dest, lastResult}, ... }
 
 window.addEventListener('beforeinstallprompt', e => {
   e.preventDefault(); deferredPrompt = e;
@@ -313,29 +337,32 @@ function showToast(msg) {
 function escHtml(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
+function getDestType() {
+  return document.querySelector('input[name="dest-type"]:checked').value;
+}
+function onDestTypeChange() {
+  document.getElementById('dest-field').style.display = getDestType()==='custom' ? 'block' : 'none';
+  updateDestOptionStyles();
+  saveData();
+}
+function updateDestOptionStyles() {
+  const t = getDestType();
+  document.querySelectorAll('.dest-option').forEach(el => {
+    el.classList.toggle('selected', el.querySelector('input').value === t);
+  });
+}
+function closeResult() {
+  document.getElementById('result-panel').classList.remove('show');
+  // 결과 패널 닫을 때 캐시에서도 숨김 처리
+  if (dayCache[currentDay]) dayCache[currentDay].resultVisible = false;
+  setTimeout(()=>{ if(map) map.relayout(); }, 150);
+}
 
 // ── 요일 탭 ──
 function getTodayIdx() {
-  // JS: 0=일,1=월...6=토 → 우리: 0=월...6=일
   const d = new Date().getDay();
   return d === 0 ? 6 : d - 1;
 }
-
-function switchDay(dayIdx) {
-  // 현재 요일 저장
-  saveData();
-  currentDay = dayIdx;
-  // 탭 UI 업데이트
-  document.querySelectorAll('.day-tab').forEach((el, i) => {
-    el.classList.toggle('active', i === dayIdx);
-  });
-  // 해당 요일 데이터 로드
-  loadDayData(dayIdx);
-  renderList();
-  clearMap();
-  document.getElementById('result-panel').classList.remove('show');
-}
-
 function initDayTabs() {
   const today = getTodayIdx();
   document.querySelectorAll('.day-tab').forEach((el, i) => {
@@ -345,43 +372,100 @@ function initDayTabs() {
   document.querySelectorAll('.day-tab')[today].classList.add('active');
 }
 
-// ── 저장/불러오기 (요일별) ──
-function getDayKey(dayIdx) { return `day_${dayIdx}`; }
+// ── 현재 화면 상태를 캐시에 저장 ──
+function cacheCurrentDay() {
+  dayCache[currentDay] = {
+    locs: JSON.parse(JSON.stringify(locs)),
+    home: document.getElementById('home-addr').value,
+    dep:  document.getElementById('departure').value,
+    buf:  document.getElementById('buffer').value,
+    destType: getDestType(),
+    dest: document.getElementById('dest-addr').value,
+    lastResult: lastResult,
+    resultVisible: document.getElementById('result-panel').classList.contains('show'),
+    // 타임라인/통계 HTML도 저장
+    statsHtml: document.getElementById('stats').innerHTML,
+    timelineHtml: document.getElementById('timeline').innerHTML,
+  };
+  // localStorage에도 저장
+  saveToStorage(currentDay, dayCache[currentDay]);
+}
 
-function saveData() {
+function saveToStorage(dayIdx, data) {
   try {
-    const data = {
-      locs,
-      home: document.getElementById('home-addr').value,
-      dep:  document.getElementById('departure').value,
-      buf:  document.getElementById('buffer').value,
-      destType: getDestType(),
-      dest: document.getElementById('dest-addr').value,
-    };
-    localStorage.setItem(getDayKey(currentDay), JSON.stringify(data));
+    localStorage.setItem(`day_${dayIdx}`, JSON.stringify({
+      locs: data.locs, home: data.home, dep: data.dep,
+      buf: data.buf, destType: data.destType, dest: data.dest
+    }));
   } catch(e) {}
 }
 
-function loadDayData(dayIdx) {
+function saveData() {
+  cacheCurrentDay();
+}
+
+// ── 요일 전환 ──
+function switchDay(dayIdx) {
+  if (dayIdx === currentDay) return;
+  cacheCurrentDay(); // 현재 요일 상태 저장
+  currentDay = dayIdx;
+
+  document.querySelectorAll('.day-tab').forEach((el, i) => {
+    el.classList.toggle('active', i === dayIdx);
+  });
+
+  // 캐시에 있으면 캐시에서 복원, 없으면 localStorage
+  if (dayCache[dayIdx]) {
+    restoreFromCache(dayCache[dayIdx]);
+  } else {
+    loadFromStorage(dayIdx);
+  }
+  clearMap();
+  renderList();
+}
+
+function restoreFromCache(data) {
+  locs = JSON.parse(JSON.stringify(data.locs));
+  locs.forEach((l,i)=>{ if(!l.color) l.color=COLORS[i%COLORS.length]; });
+  nextId = locs.length ? Math.max(...locs.map(l=>l.id))+1 : 1;
+  colorIdx = locs.length;
+  document.getElementById('home-addr').value = data.home || '';
+  document.getElementById('departure').value  = data.dep  || '09:00';
+  document.getElementById('buffer').value     = data.buf  || '0';
+  document.getElementById('dest-addr').value  = data.dest || '';
+  const radio = document.querySelector(`input[name="dest-type"][value="${data.destType||'home'}"]`);
+  if (radio) { radio.checked = true; onDestTypeChange(); }
+  updateDestOptionStyles();
+
+  // 결과 패널 복원
+  lastResult = data.lastResult || null;
+  if (data.resultVisible && lastResult) {
+    document.getElementById('stats').innerHTML = data.statsHtml || '';
+    document.getElementById('timeline').innerHTML = data.timelineHtml || '';
+    document.getElementById('result-panel').classList.add('show');
+    setTimeout(()=>{ if(map) map.relayout(); }, 150);
+  } else {
+    document.getElementById('result-panel').classList.remove('show');
+  }
+}
+
+function loadFromStorage(dayIdx) {
   try {
-    const saved = localStorage.getItem(getDayKey(dayIdx));
+    const saved = localStorage.getItem(`day_${dayIdx}`);
     if (saved) {
       const data = JSON.parse(saved);
       locs = data.locs || [];
-      locs.forEach((l,i) => { if (!l.color) l.color = COLORS[i%COLORS.length]; });
+      locs.forEach((l,i)=>{ if(!l.color) l.color=COLORS[i%COLORS.length]; });
       nextId = locs.length ? Math.max(...locs.map(l=>l.id))+1 : 1;
       colorIdx = locs.length;
       document.getElementById('home-addr').value = data.home || '';
       document.getElementById('departure').value  = data.dep  || '09:00';
       document.getElementById('buffer').value     = data.buf  || '0';
       document.getElementById('dest-addr').value  = data.dest || '';
-      const dt = data.destType || 'home';
-      const radio = document.querySelector(`input[name="dest-type"][value="${dt}"]`);
+      const radio = document.querySelector(`input[name="dest-type"][value="${data.destType||'home'}"]`);
       if (radio) { radio.checked = true; onDestTypeChange(); }
     } else {
-      // 빈 상태
-      locs = [];
-      nextId = 1; colorIdx = 0;
+      locs = []; nextId=1; colorIdx=0;
       document.getElementById('home-addr').value = '';
       document.getElementById('departure').value  = '09:00';
       document.getElementById('buffer').value     = '0';
@@ -390,13 +474,15 @@ function loadDayData(dayIdx) {
       if (radio) { radio.checked = true; onDestTypeChange(); }
     }
     updateDestOptionStyles();
+    lastResult = null;
+    document.getElementById('result-panel').classList.remove('show');
   } catch(e) {}
 }
 
 function loadData() {
   const params = new URLSearchParams(location.search);
   if (params.get('share') === '1') { loadFromUrl(params); return; }
-  loadDayData(currentDay);
+  loadFromStorage(currentDay);
 }
 
 function loadFromUrl(params) {
@@ -413,7 +499,7 @@ function loadFromUrl(params) {
     if (raw) {
       locs = raw.split('|').map((s,i) => {
         const p = s.split(';;');
-        return {id:i+1, name:p[0]||`현장 ${i+1}`, addr:p[1]||'', dur:parseInt(p[2])||60, color:COLORS[i%COLORS.length]};
+        return {id:i+1, name:p[0]||`현장 ${i+1}`, addr:p[1]||'', dur:parseInt(p[2])||30, color:COLORS[i%COLORS.length]};
       });
       nextId=locs.length+1; colorIdx=locs.length;
     }
@@ -437,41 +523,20 @@ function buildShareUrl() {
   return `${location.origin}${location.pathname}?${p.toString()}`;
 }
 
-function getDestType() {
-  return document.querySelector('input[name="dest-type"]:checked').value;
-}
-function onDestTypeChange() {
-  document.getElementById('dest-field').style.display = getDestType()==='custom' ? 'block' : 'none';
-  updateDestOptionStyles();
-  saveData();
-}
-function updateDestOptionStyles() {
-  const t = getDestType();
-  document.querySelectorAll('.dest-option').forEach(el => {
-    el.classList.toggle('selected', el.querySelector('input').value === t);
-  });
-}
-function closeResult() {
-  document.getElementById('result-panel').classList.remove('show');
-  setTimeout(()=>{ if(map) map.relayout(); }, 150);
-}
-
 function buildShareText() {
   if (!lastResult) return '';
   const {dep, steps, totalTravel, totalWork, bufPct} = lastResult;
   const shareUrl = buildShareUrl();
-  let t = `🧹 오늘 청소 동선 (${DAYS[currentDay]}요일)\n출발: ${dep}`;
+  let t = `🧹 ${DAYS[currentDay]}요일 청소 동선\n출발: ${dep}`;
   if (bufPct > 0) t += ` (혼잡 보정 ${bufPct}%)`;
   t += '\n\n';
-  t += `🏠 출발: ${steps[0].detail}\n`;
-  for (let i=1;i<steps.length-1;i++) {
-    const s=steps[i];
+  steps.forEach((s, i) => {
+    if (i === 0) { t += `🏠 출발: ${s.detail}\n`; return; }
+    if (i === steps.length-1) { t += `\n🏁 ${s.name}: ${s.detail}\n`; return; }
     t += `📍 ${s.name}${s.travelInfo?` (이동 ${s.travelInfo})`:''}\n`;
     if (s.addr) t += `   ${s.addr}\n`;
     t += `   ${s.detail}\n`;
-  }
-  const last=steps[steps.length-1];
-  t += `\n🏁 ${last.name}: ${last.detail}\n`;
+  });
   t += `\n⏱ 이동 ${fmtMins(totalTravel)} + 작업 ${fmtMins(totalWork)}`;
   t += `\n\n🗺 동선 지도: ${shareUrl}`;
   return t;
@@ -521,11 +586,8 @@ function doSearch(query,dd,input,onSelect) {
 }
 
 function initMap() {
-  const container = document.getElementById('map');
-  map = new kakao.maps.Map(container, {center:new kakao.maps.LatLng(37.4563,127.1313),level:9});
+  map = new kakao.maps.Map(document.getElementById('map'), {center:new kakao.maps.LatLng(37.4563,127.1313),level:9});
   geocoder = new kakao.maps.services.Geocoder();
-  mapReady = true;
-
   kakao.maps.event.addListener(map,'click',function(e){
     if (!mapClickMode) return;
     const ll=e.latLng;
@@ -538,21 +600,17 @@ function initMap() {
   });
   setupAddrSearch('home-addr','home-dropdown',()=>saveData());
   setupAddrSearch('dest-addr','dest-dropdown',()=>saveData());
-
-  // 모바일 지도 강제 렌더링
-  function forceRelayout() {
-    map.relayout();
-    map.setCenter(new kakao.maps.LatLng(37.4563,127.1313));
-  }
-  setTimeout(forceRelayout, 300);
-  setTimeout(forceRelayout, 800);
-  window.addEventListener('resize', ()=>{ if(map) map.relayout(); });
+  setTimeout(()=>{ map.relayout(); map.setCenter(new kakao.maps.LatLng(37.4563,127.1313)); }, 300);
+  setTimeout(()=>{ map.relayout(); }, 800);
+  window.addEventListener('resize',()=>{ if(map) map.relayout(); });
 }
 
 function toggleMapClick() {
-  mapClickMode=!mapClickMode;
-  document.getElementById('btn-map-add').classList.toggle('active',mapClickMode);
-  document.getElementById('map-click-hint').classList.toggle('show',mapClickMode);
+  mapClickMode = !mapClickMode;
+  document.getElementById('btn-map-add').classList.toggle('active', mapClickMode);
+  document.getElementById('map-click-hint').classList.toggle('show', mapClickMode);
+  // 핀 커서
+  document.getElementById('map-wrap').classList.toggle('pin-cursor', mapClickMode);
 }
 
 function initSortable() {
@@ -576,7 +634,7 @@ function renderList() {
     const card=document.createElement('div');card.className='loc-card';
     card.innerHTML=`
       <div class="loc-header">
-        <span class="drag-handle">⠿⠿</span>
+        <span class="drag-handle tooltip-wrap" title="">⠿⠿<span class="tip">드래그해서 순서를 바꿀 수 있어요</span></span>
         <div class="loc-num" style="background:${loc.color}">${i+1}</div>
         <input class="loc-name-input" type="text" value="${escHtml(loc.name)}" placeholder="현장 이름"
           oninput="locs[${i}].name=this.value;saveData()">
@@ -605,13 +663,15 @@ function renderList() {
 }
 
 function addLoc(addr) {
-  const color=COLORS[colorIdx%COLORS.length];colorIdx++;
-  locs.push({id:nextId++,name:`현장 ${locs.length+1}`,addr:addr||'',dur:60,color});
-  renderList();saveData();
+  const color=COLORS[colorIdx%COLORS.length]; colorIdx++;
+  // 작업시간: 첫 현장은 30분, 이후는 바로 위 현장 시간 복사
+  const dur = locs.length > 0 ? locs[locs.length-1].dur : 30;
+  locs.push({id:nextId++, name:`현장 ${locs.length+1}`, addr:addr||'', dur, color});
+  renderList(); saveData();
 }
 function removeLoc(id) {
   if (locs.length<=1) return alert('현장은 최소 1개 필요해요.');
-  locs=locs.filter(l=>l.id!==id);renderList();saveData();
+  locs=locs.filter(l=>l.id!==id); renderList(); saveData();
 }
 
 function addMins(t,m) {
@@ -690,10 +750,8 @@ function drawMap(stops,segs,stepInfoList) {
       yAnchor:1.5
     }));
   });
-
   stops.forEach((c,i)=>{
-    const isHome=i===0;
-    const isDestEnd=i===stops.length-1&&!c.isWork;
+    const isHome=i===0, isDestEnd=i===stops.length-1&&!c.isWork;
     const color=c.isWork?c.color:'#444444';
     const label=isHome?'집':isDestEnd?'도착':String(i);
     const size=isHome||isDestEnd?32:28;
@@ -711,7 +769,6 @@ function drawMap(stops,segs,stepInfoList) {
       }));
     }
   });
-
   const bounds=new kakao.maps.LatLngBounds();
   stops.forEach(c=>bounds.extend(new kakao.maps.LatLng(c.lat,c.lng)));
   map.setBounds(bounds);
@@ -769,31 +826,21 @@ async function autoSort() {
   finally{btn.disabled=false;btn.textContent='🔀 최적 순서';}
 }
 
+// 카카오톡 공유 → 텍스트 클립보드 복사 + 카카오톡 열기
 function shareKakao() {
   if (!lastResult) return alert('먼저 동선을 계산해주세요.');
-  const {steps,totalTravel,totalWork,destType}=lastResult;
-  const locCount=steps.length-2;
-  const locNames=steps.slice(1,-1).map(s=>s.name).join(' → ');
-  const finishTime=steps[steps.length-1].detail.split(' ')[0];
-  const shareUrl=buildShareUrl();
-  if (window.Kakao&&Kakao.isInitialized()) {
-    try {
-      Kakao.Share.sendDefault({
-        objectType:'feed',
-        content:{
-          title:`🧹 ${DAYS[currentDay]}요일 청소 동선 (현장 ${locCount}곳)`,
-          description:`${locNames}\n⏱ 이동 ${fmtMins(totalTravel)} | 작업 ${fmtMins(totalWork)} | ${destType==='last'?'완료':'귀가'} ${finishTime}`,
-          imageUrl:'https://t1.kakaocdn.net/kakaocorp/kakaocorp/admin/service/a85d0594017900001.png',
-          link:{mobileWebUrl:shareUrl,webUrl:shareUrl}
-        },
-        buttons:[{title:'🗺 동선 지도 보기',link:{mobileWebUrl:shareUrl,webUrl:shareUrl}}]
-      });
-      return;
-    } catch(e){console.log('카카오 공유 오류',e);}
-  }
-  const t=buildShareText();
-  navigator.clipboard.writeText(t).then(()=>showToast('📋 복사됨! 카카오톡에 붙여넣기 하세요')).catch(()=>{
-    const ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);showToast('📋 복사됨!');
+  const text = buildShareText();
+  navigator.clipboard.writeText(text).then(()=>{
+    showToast('📋 복사됐어요! 카카오톡에 붙여넣기 하세요');
+    // 모바일에서 카카오톡 앱 열기 시도
+    setTimeout(()=>{
+      window.location.href = 'kakaolink://send';
+    }, 500);
+  }).catch(()=>{
+    const ta=document.createElement('textarea');ta.value=text;
+    document.body.appendChild(ta);ta.select();document.execCommand('copy');
+    document.body.removeChild(ta);
+    showToast('📋 복사됐어요! 카카오톡에 붙여넣기 하세요');
   });
 }
 function copyText(){
@@ -868,24 +915,16 @@ async function calculate() {
     drawMap(stops,segDirs,stepInfoList);
     drawMiniMap(stops);
 
-    // 결과 패널 열린 후 지도 relayout
-    document.getElementById('result-panel').classList.add('show');
-    setTimeout(()=>{ if(map){map.relayout();} },200);
-
     const destLabel=destType==='last'?'작업 완료':destType==='home'?'예상 귀가':'도착 예상';
-    document.getElementById('stats').innerHTML=`
+    const statsHtml=`
       <div class="stat"><div class="stat-val">${fmtMins(totalTravel)}</div><div class="stat-lbl">총 이동시간</div></div>
       <div class="stat"><div class="stat-val">${fmtMins(totalWork)}</div><div class="stat-lbl">총 작업시간</div></div>
       <div class="stat"><div class="stat-val">${ct}</div><div class="stat-lbl">${destLabel}</div></div>`;
+    document.getElementById('stats').innerHTML=statsHtml;
 
     const steps=[{name:'출발',detail:homeAddr,color:'#444444',addr:''}];
     stepInfoList.forEach((s,i)=>{
-      steps.push({
-        name:s.name,addr:s.addr,
-        detail:`도착 ${s.arrive} · 작업 ${fmtMins(s.dur)} · 완료 ${s.done}`,
-        travelInfo:fmtMins(segDirs[i].duration),
-        color:locs[i].color
-      });
+      steps.push({name:s.name,addr:s.addr,detail:`도착 ${s.arrive} · 작업 ${fmtMins(s.dur)} · 완료 ${s.done}`,travelInfo:fmtMins(segDirs[i].duration),color:locs[i].color});
     });
     if (destType!=='last') {
       steps.push({name:destType==='home'?'귀가':'도착',detail:`${ct} 도착 · 이동 ${fmtMins(lastDir.duration)}`,color:'#444444',addr:''});
@@ -908,6 +947,12 @@ async function calculate() {
         </div>`;
       tlEl.appendChild(div);
     });
+
+    document.getElementById('result-panel').classList.add('show');
+    setTimeout(()=>{ if(map) map.relayout(); },200);
+
+    // 캐시 저장 (결과 포함)
+    saveData();
 
     if (window.innerWidth<=768)
       document.getElementById('result-panel').scrollIntoView({behavior:'smooth'});
