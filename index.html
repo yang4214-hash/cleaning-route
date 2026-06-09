@@ -26,9 +26,18 @@ header { background: var(--surface); border-bottom: 1px solid var(--border); pad
 .section-label { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; color: var(--text-muted); text-transform: uppercase; margin-bottom: 10px; }
 .field { margin-bottom: 10px; }
 .field label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 4px; }
-.field input { width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 14px; color: var(--text); background: var(--surface); outline: none; }
-.field input:focus { border-color: var(--accent); }
+.addr-wrap { position: relative; }
+.addr-wrap input { width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 14px; color: var(--text); background: var(--surface); outline: none; }
+.addr-wrap input:focus { border-color: var(--accent); }
+.dropdown { position: absolute; top: 100%; left: 0; right: 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: 0 4px 12px rgba(0,0,0,0.1); z-index: 100; display: none; max-height: 200px; overflow-y: auto; }
+.dropdown.show { display: block; }
+.dropdown-item { padding: 9px 12px; font-size: 13px; cursor: pointer; border-bottom: 0.5px solid var(--border); line-height: 1.4; }
+.dropdown-item:last-child { border-bottom: none; }
+.dropdown-item:hover { background: var(--accent-light); }
+.dropdown-item .addr-main { color: var(--text); font-weight: 500; }
+.dropdown-item .addr-sub { color: var(--text-muted); font-size: 11px; margin-top: 1px; }
 .field-row { display: grid; grid-template-columns: 1fr 80px; gap: 8px; }
+.field input[type="time"], .field input[type="text"] { width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 14px; color: var(--text); background: var(--surface); outline: none; }
 .loc-list { display: flex; flex-direction: column; gap: 8px; }
 .loc-card { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px; background: var(--surface); }
 .loc-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
@@ -36,8 +45,7 @@ header { background: var(--surface); border-bottom: 1px solid var(--border); pad
 .loc-name-input { flex: 1; border: none !important; padding: 0 !important; font-size: 14px !important; font-weight: 600 !important; background: transparent !important; outline: none; }
 .btn-rm { background: none; border: none; cursor: pointer; color: var(--text-muted); font-size: 18px; line-height: 1; padding: 2px; border-radius: 4px; }
 .btn-rm:hover { color: var(--accent-2); }
-.loc-addr-input { width: 100%; padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; margin-bottom: 6px; outline: none; }
-.loc-footer { display: flex; align-items: center; gap: 8px; }
+.loc-footer { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
 .loc-footer label { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
 .dur-input { width: 64px; padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; text-align: center; outline: none; }
 .btn-add { width: 100%; padding: 10px; border: 1.5px dashed var(--border); border-radius: var(--radius-sm); background: transparent; color: var(--text-muted); font-size: 13px; cursor: pointer; }
@@ -83,7 +91,13 @@ header { background: var(--surface); border-bottom: 1px solid var(--border); pad
     <div class="panel-scroll">
       <div class="section">
         <div class="section-label">출발 정보</div>
-        <div class="field"><label>출발지 주소</label><input type="text" id="home-addr" placeholder="예: 성남시 이매동 87-9"></div>
+        <div class="field">
+          <label>출발지 주소</label>
+          <div class="addr-wrap">
+            <input type="text" id="home-addr" placeholder="주소 검색..." autocomplete="off">
+            <div class="dropdown" id="home-dropdown"></div>
+          </div>
+        </div>
         <div class="field-row">
           <div class="field" style="margin:0"><label>출발 시간</label><input type="time" id="departure" value="09:00"></div>
           <div class="field" style="margin:0"><label>여유(분)</label><input type="text" id="buffer" value="0" style="text-align:center"></div>
@@ -114,6 +128,7 @@ const KAKAO_KEY = '18917cb7a54fccdb0bce1d1351c3eb62';
 const COLORS = ['#2d6a4f','#e76f51','#457b9d','#e9c46a','#6d597a','#3a86ff','#fb8500','#2ec4b6','#e63946','#606c38'];
 let locs = [], nextId = 1;
 let map, customOverlays = [], polylines = [];
+let geocoder;
 
 function saveData() {
   try {
@@ -137,9 +152,73 @@ function loadData() {
   }
 }
 
+// 주소 자동완성
+function setupAddrSearch(inputId, dropdownId, onSelect) {
+  const input = document.getElementById(inputId);
+  const dropdown = document.getElementById(dropdownId);
+  let timer;
+
+  input.addEventListener('input', function() {
+    clearTimeout(timer);
+    const q = this.value.trim();
+    if (q.length < 2) { dropdown.classList.remove('show'); return; }
+    timer = setTimeout(() => searchAddr(q, dropdown, input, onSelect), 300);
+  });
+
+  input.addEventListener('blur', function() {
+    setTimeout(() => dropdown.classList.remove('show'), 200);
+  });
+}
+
+function searchAddr(query, dropdown, input, onSelect) {
+  geocoder.addressSearch(query, function(result, status) {
+    dropdown.innerHTML = '';
+    if (status === kakao.maps.services.Status.OK && result.length > 0) {
+      result.slice(0, 5).forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'dropdown-item';
+        const roadAddr = item.road_address ? item.road_address.address_name : '';
+        const jibunAddr = item.address ? item.address.address_name : '';
+        div.innerHTML = `<div class="addr-main">${roadAddr || jibunAddr}</div>${roadAddr && jibunAddr ? `<div class="addr-sub">${jibunAddr}</div>` : ''}`;
+        div.addEventListener('mousedown', function() {
+          input.value = roadAddr || jibunAddr;
+          dropdown.classList.remove('show');
+          onSelect(roadAddr || jibunAddr);
+        });
+        dropdown.appendChild(div);
+      });
+      dropdown.classList.add('show');
+    } else {
+      // 키워드 검색도 시도
+      const ps = new kakao.maps.services.Places();
+      ps.keywordSearch(query, function(r, s) {
+        if (s === kakao.maps.services.Status.OK) {
+          r.slice(0, 5).forEach(item => {
+            const div = document.createElement('div');
+            div.className = 'dropdown-item';
+            div.innerHTML = `<div class="addr-main">${item.place_name}</div><div class="addr-sub">${item.road_address_name || item.address_name}</div>`;
+            div.addEventListener('mousedown', function() {
+              input.value = item.road_address_name || item.address_name;
+              dropdown.classList.remove('show');
+              onSelect(item.road_address_name || item.address_name);
+            });
+            dropdown.appendChild(div);
+          });
+          if (r.length > 0) dropdown.classList.add('show');
+        }
+      });
+    }
+  });
+}
+
 function initMap() {
   map = new kakao.maps.Map(document.getElementById('map'), {
     center: new kakao.maps.LatLng(37.4563, 127.1313), level: 9
+  });
+  geocoder = new kakao.maps.services.Geocoder();
+
+  setupAddrSearch('home-addr', 'home-dropdown', function(addr) {
+    saveData();
   });
 }
 
@@ -155,7 +234,10 @@ function renderList() {
         <input class="loc-name-input" type="text" value="${loc.name}" onchange="locs[${i}].name=this.value;saveData()">
         <button class="btn-rm" onclick="removeLoc(${loc.id})">×</button>
       </div>
-      <input class="loc-addr-input" type="text" placeholder="주소 입력" value="${loc.addr}" onchange="locs[${i}].addr=this.value;saveData()">
+      <div class="addr-wrap">
+        <input type="text" id="addr-${loc.id}" class="loc-addr-input" placeholder="주소 검색..." value="${loc.addr}" autocomplete="off" style="width:100%;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;outline:none;">
+        <div class="dropdown" id="dropdown-${loc.id}"></div>
+      </div>
       <div class="loc-footer">
         <label>작업시간</label>
         <input class="dur-input" type="number" value="${loc.dur}" min="5" max="480" onchange="locs[${i}].dur=parseInt(this.value)||0;saveData()">
@@ -163,6 +245,18 @@ function renderList() {
       </div>
     `;
     el.appendChild(card);
+
+    const locIndex = i;
+    setTimeout(() => {
+      setupAddrSearch(`addr-${loc.id}`, `dropdown-${loc.id}`, function(addr) {
+        locs[locIndex].addr = addr;
+        saveData();
+      });
+      document.getElementById(`addr-${loc.id}`).addEventListener('change', function() {
+        locs[locIndex].addr = this.value;
+        saveData();
+      });
+    }, 0);
   });
 }
 
@@ -178,23 +272,57 @@ function estimateMins(a,b) {
   return Math.max(5, Math.round(R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x))/30*60));
 }
 
-function findOrder(coords) {
+async function getRealDrivingMins(a, b) {
+  try {
+    const res = await fetch(`/api/directions?origin=${a.lng},${a.lat}&destination=${b.lng},${b.lat}`);
+    const data = await res.json();
+    if (data.routes && data.routes[0]) {
+      return Math.round(data.routes[0].summary.duration / 60);
+    }
+  } catch(e) {}
+  return estimateMins(a, b);
+}
+
+async function findOrder(coords) {
   const n=coords.length-1, visited=new Set([0]), order=[];
   let cur=0;
   while(order.length<n) {
     let best=-1,bestD=Infinity;
-    for(let j=1;j<=n;j++) { if(!visited.has(j)){const d=estimateMins(coords[cur],coords[j]);if(d<bestD){bestD=d;best=j;}} }
+    for(let j=1;j<=n;j++) {
+      if(!visited.has(j)){
+        const d=estimateMins(coords[cur],coords[j]);
+        if(d<bestD){bestD=d;best=j;}
+      }
+    }
     visited.add(best); order.push(best); cur=best;
   }
   return order;
 }
 
-function geocode(addr) {
+async function buildTravelMatrix(coords) {
+  const n = coords.length;
+  const matrix = Array.from({length:n}, ()=>Array(n).fill(0));
+  const promises = [];
+  for(let i=0;i<n;i++) {
+    for(let j=0;j<n;j++) {
+      if(i!==j) promises.push(
+        getRealDrivingMins(coords[i], coords[j]).then(m => { matrix[i][j]=m; })
+      );
+    }
+  }
+  await Promise.all(promises);
+  return matrix;
+}
+
+function geocodeAddr(addr) {
   return new Promise((res,rej) => {
-    const gc = new kakao.maps.services.Geocoder();
-    gc.addressSearch(addr, (r,s) => {
-      if(s===kakao.maps.services.Status.OK) res({lat:parseFloat(r[0].y),lng:parseFloat(r[0].x)});
-      else rej(new Error(`주소 못 찾음: ${addr}`));
+    geocoder.addressSearch(addr, (r,s) => {
+      if(s===kakao.maps.services.Status.OK) { res({lat:parseFloat(r[0].y),lng:parseFloat(r[0].x)}); return; }
+      const ps = new kakao.maps.services.Places();
+      ps.keywordSearch(addr, (r2,s2) => {
+        if(s2===kakao.maps.services.Status.OK) res({lat:parseFloat(r2[0].y),lng:parseFloat(r2[0].x)});
+        else rej(new Error(`주소 못 찾음: ${addr}`));
+      });
     });
   });
 }
@@ -257,12 +385,44 @@ async function calculate() {
   document.getElementById('error-msg').classList.remove('show');
   document.getElementById('result-section').classList.remove('show');
   try {
-    const homeCoord=await geocode(homeAddr);
-    const locCoords=await Promise.all(locs.map(l=>geocode(l.addr)));
+    const homeCoord=await geocodeAddr(homeAddr);
+    const locCoords=await Promise.all(locs.map(l=>geocodeAddr(l.addr)));
     const allCoords=[homeCoord,...locCoords];
-    const order=findOrder(allCoords);
+    document.querySelector('.loading-bar span').textContent='실제 도로 이동시간 계산 중...';
+    const matrix=await buildTravelMatrix(allCoords);
+    // 매트릭스 기반 최적 순서
+    const n=allCoords.length-1;
+    const visited=new Set([0]); const order=[];
+    let cur=0;
+    while(order.length<n){
+      let best=-1,bestD=Infinity;
+      for(let j=1;j<=n;j++){if(!visited.has(j)&&matrix[cur][j]<bestD){bestD=matrix[cur][j];best=j;}}
+      visited.add(best);order.push(best);cur=best;
+    }
     drawMap(allCoords,order);
-    renderTimeline(dep,order,allCoords);
+    // 타임라인 렌더링 (매트릭스 사용)
+    const totalWork=locs.reduce((s,l)=>s+l.dur,0);
+    let totalTravel=0;
+    for(let i=0;i<order.length;i++) totalTravel+=matrix[i===0?0:order[i-1]][order[i]];
+    totalTravel+=matrix[order[order.length-1]][0];
+    document.getElementById('stats').innerHTML=`<div class="stat"><div class="stat-val">${fmtMins(totalTravel)}</div><div class="stat-lbl">총 이동시간</div></div><div class="stat"><div class="stat-val">${fmtMins(totalWork)}</div><div class="stat-lbl">총 작업시간</div></div><div class="stat"><div class="stat-val">${addMins(dep,totalTravel+totalWork)}</div><div class="stat-lbl">예상 귀가</div></div>`;
+    const tlEl=document.getElementById('timeline');tlEl.innerHTML='';
+    let ct=dep;
+    const steps=[{name:'출발',detail:homeAddr,color:'#444'}];
+    order.forEach((idx,i)=>{
+      const travel=matrix[i===0?0:order[i-1]][idx];
+      ct=addMins(ct,travel);const arrive=ct;
+      const loc=locs[idx-1];ct=addMins(ct,loc.dur);
+      steps.push({name:loc.name,detail:`도착 ${arrive} · 작업 ${fmtMins(loc.dur)} · 완료 ${ct}`,travelInfo:`이동 ${fmtMins(travel)}`,color:COLORS[i%COLORS.length]});
+    });
+    const lt=matrix[order[order.length-1]][0];ct=addMins(ct,lt);
+    steps.push({name:'귀가',detail:`도착 ${ct} · 이동 ${fmtMins(lt)}`,color:'#444'});
+    steps.forEach((s,si)=>{
+      const isLast=si===steps.length-1,div=document.createElement('div');div.className='tl-item';
+      div.innerHTML=`<div class="tl-left"><div class="tl-dot" style="background:${s.color}"></div>${!isLast?'<div class="tl-line"></div>':''}</div><div class="tl-body"><div class="tl-name">${s.name}${s.travelInfo?` <span style="font-size:11px;color:var(--text-muted);font-weight:400">(${s.travelInfo})</span>`:''}</div><div class="tl-detail">${s.detail}</div></div>`;
+      tlEl.appendChild(div);
+    });
+    document.getElementById('result-section').classList.add('show');
   } catch(e) {
     const errEl=document.getElementById('error-msg'); errEl.textContent=`오류: ${e.message}`; errEl.classList.add('show');
   } finally {
@@ -271,7 +431,6 @@ async function calculate() {
   }
 }
 
-// 카카오 SDK 동적 로드 후 초기화
 (function() {
   const script = document.createElement('script');
   script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${KAKAO_KEY}&libraries=services&autoload=false`;
