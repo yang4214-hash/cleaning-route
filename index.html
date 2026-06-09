@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>청소 동선 플래너</title>
-<script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=18917cb7a54fccdb0bce1d1351c3eb62&libraries=services"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -14,7 +13,7 @@
   --accent-2: #e76f51; --accent-2-light: #fdf0ec;
   --radius: 12px; --radius-sm: 8px;
 }
-body { font-family: 'Noto Sans KR', -apple-system, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
+body { font-family: -apple-system, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
 header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 24px; height: 56px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
 .logo { display: flex; align-items: center; gap: 10px; font-size: 16px; font-weight: 700; color: var(--accent); }
 .logo-icon { width: 30px; height: 30px; background: var(--accent); border-radius: 8px; display: flex; align-items: center; justify-content: center; }
@@ -23,13 +22,11 @@ header { background: var(--surface); border-bottom: 1px solid var(--border); pad
 .main { display: grid; grid-template-columns: 380px 1fr; flex: 1; min-height: 0; height: calc(100vh - 56px); }
 .panel { background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
 .panel-scroll { flex: 1; overflow-y: auto; padding: 20px; }
-.panel-scroll::-webkit-scrollbar { width: 4px; }
-.panel-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
 .section { margin-bottom: 24px; }
 .section-label { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; color: var(--text-muted); text-transform: uppercase; margin-bottom: 10px; }
 .field { margin-bottom: 10px; }
 .field label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 4px; }
-.field input { width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 14px; color: var(--text); background: var(--surface); outline: none; transition: border-color 0.15s; }
+.field input { width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 14px; color: var(--text); background: var(--surface); outline: none; }
 .field input:focus { border-color: var(--accent); }
 .field-row { display: grid; grid-template-columns: 1fr 80px; gap: 8px; }
 .loc-list { display: flex; flex-direction: column; gap: 8px; }
@@ -38,15 +35,14 @@ header { background: var(--surface); border-bottom: 1px solid var(--border); pad
 .loc-num { width: 24px; height: 24px; border-radius: 50%; background: var(--accent); color: white; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .loc-name-input { flex: 1; border: none !important; padding: 0 !important; font-size: 14px !important; font-weight: 600 !important; background: transparent !important; outline: none; }
 .btn-rm { background: none; border: none; cursor: pointer; color: var(--text-muted); font-size: 18px; line-height: 1; padding: 2px; border-radius: 4px; }
-.btn-rm:hover { color: var(--accent-2); background: var(--accent-2-light); }
+.btn-rm:hover { color: var(--accent-2); }
 .loc-addr-input { width: 100%; padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; margin-bottom: 6px; outline: none; }
-.loc-addr-input:focus { border-color: var(--accent); }
 .loc-footer { display: flex; align-items: center; gap: 8px; }
 .loc-footer label { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
 .dur-input { width: 64px; padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; text-align: center; outline: none; }
-.btn-add { width: 100%; padding: 10px; border: 1.5px dashed var(--border); border-radius: var(--radius-sm); background: transparent; color: var(--text-muted); font-size: 13px; cursor: pointer; transition: all 0.15s; }
+.btn-add { width: 100%; padding: 10px; border: 1.5px dashed var(--border); border-radius: var(--radius-sm); background: transparent; color: var(--text-muted); font-size: 13px; cursor: pointer; }
 .btn-add:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
-.btn-calc { width: 100%; padding: 13px; background: var(--accent); color: white; border: none; border-radius: var(--radius); font-size: 15px; font-weight: 700; cursor: pointer; transition: opacity 0.15s; }
+.btn-calc { width: 100%; padding: 13px; background: var(--accent); color: white; border: none; border-radius: var(--radius); font-size: 15px; font-weight: 700; cursor: pointer; }
 .btn-calc:hover { opacity: 0.88; }
 .btn-calc:disabled { opacity: 0.5; cursor: not-allowed; }
 .result-section { background: var(--bg); border-top: 1px solid var(--border); padding: 16px 20px; display: none; max-height: 45vh; overflow-y: auto; }
@@ -87,10 +83,7 @@ header { background: var(--surface); border-bottom: 1px solid var(--border); pad
     <div class="panel-scroll">
       <div class="section">
         <div class="section-label">출발 정보</div>
-        <div class="field">
-          <label>출발지 주소</label>
-          <input type="text" id="home-addr" placeholder="예: 성남시 이매동 87-9">
-        </div>
+        <div class="field"><label>출발지 주소</label><input type="text" id="home-addr" placeholder="예: 성남시 이매동 87-9"></div>
         <div class="field-row">
           <div class="field" style="margin:0"><label>출발 시간</label><input type="time" id="departure" value="09:00"></div>
           <div class="field" style="margin:0"><label>여유(분)</label><input type="text" id="buffer" value="0" style="text-align:center"></div>
@@ -117,39 +110,38 @@ header { background: var(--surface); border-bottom: 1px solid var(--border); pad
 </div>
 
 <script>
+const KAKAO_KEY = '18917cb7a54fccdb0bce1d1351c3eb62';
 const COLORS = ['#2d6a4f','#e76f51','#457b9d','#e9c46a','#6d597a','#3a86ff','#fb8500','#2ec4b6','#e63946','#606c38'];
-let locs = [];
-let nextId = 1;
-let map, markers = [], polylines = [], customOverlays = [];
+let locs = [], nextId = 1;
+let map, customOverlays = [], polylines = [];
 
-// 로컬스토리지 저장/불러오기
 function saveData() {
-  localStorage.setItem('cleaning_locs', JSON.stringify(locs));
-  localStorage.setItem('cleaning_home', document.getElementById('home-addr').value);
-  localStorage.setItem('cleaning_dep', document.getElementById('departure').value);
+  try {
+    localStorage.setItem('cleaning_locs', JSON.stringify(locs));
+    localStorage.setItem('cleaning_home', document.getElementById('home-addr').value);
+    localStorage.setItem('cleaning_dep', document.getElementById('departure').value);
+  } catch(e) {}
 }
 
 function loadData() {
-  const saved = localStorage.getItem('cleaning_locs');
-  const home = localStorage.getItem('cleaning_home');
-  const dep = localStorage.getItem('cleaning_dep');
-  if (saved) { locs = JSON.parse(saved); nextId = locs.length ? Math.max(...locs.map(l=>l.id))+1 : 1; }
-  else { locs = [{id:1,name:'A 현장',addr:'',dur:60},{id:2,name:'B 현장',addr:'',dur:60}]; nextId = 3; }
-  if (home) document.getElementById('home-addr').value = home;
-  if (dep) document.getElementById('departure').value = dep;
+  try {
+    const saved = localStorage.getItem('cleaning_locs');
+    const home = localStorage.getItem('cleaning_home');
+    const dep = localStorage.getItem('cleaning_dep');
+    if (saved) { locs = JSON.parse(saved); nextId = locs.length ? Math.max(...locs.map(l=>l.id))+1 : 1; }
+    else { locs = [{id:1,name:'A 현장',addr:'',dur:60},{id:2,name:'B 현장',addr:'',dur:60}]; nextId = 3; }
+    if (home) document.getElementById('home-addr').value = home;
+    if (dep) document.getElementById('departure').value = dep;
+  } catch(e) {
+    locs = [{id:1,name:'A 현장',addr:'',dur:60},{id:2,name:'B 현장',addr:'',dur:60}]; nextId = 3;
+  }
 }
 
-// 지도 초기화
-kakao.maps.load(function() {
+function initMap() {
   map = new kakao.maps.Map(document.getElementById('map'), {
-    center: new kakao.maps.LatLng(37.4563, 127.1313),
-    level: 9
+    center: new kakao.maps.LatLng(37.4563, 127.1313), level: 9
   });
-  loadData();
-  renderList();
-  document.getElementById('home-addr').addEventListener('change', saveData);
-  document.getElementById('departure').addEventListener('change', saveData);
-};
+}
 
 function renderList() {
   const el = document.getElementById('loc-list');
@@ -163,7 +155,7 @@ function renderList() {
         <input class="loc-name-input" type="text" value="${loc.name}" onchange="locs[${i}].name=this.value;saveData()">
         <button class="btn-rm" onclick="removeLoc(${loc.id})">×</button>
       </div>
-      <input class="loc-addr-input" type="text" placeholder="주소 입력 (도로명/지번)" value="${loc.addr}" onchange="locs[${i}].addr=this.value;saveData()">
+      <input class="loc-addr-input" type="text" placeholder="주소 입력" value="${loc.addr}" onchange="locs[${i}].addr=this.value;saveData()">
       <div class="loc-footer">
         <label>작업시간</label>
         <input class="dur-input" type="number" value="${loc.dur}" min="5" max="480" onchange="locs[${i}].dur=parseInt(this.value)||0;saveData()">
@@ -174,201 +166,126 @@ function renderList() {
   });
 }
 
-function addLoc() {
-  locs.push({ id: nextId++, name: `현장 ${locs.length+1}`, addr: '', dur: 60 });
-  renderList(); saveData();
+function addLoc() { locs.push({id:nextId++,name:`현장 ${locs.length+1}`,addr:'',dur:60}); renderList(); saveData(); }
+function removeLoc(id) { if(locs.length<=1) return alert('현장은 최소 1개 필요해요.'); locs=locs.filter(l=>l.id!==id); renderList(); saveData(); }
+
+function addMins(t,m) { const [h,mm]=t.split(':').map(Number),tot=h*60+mm+m; return `${String(Math.floor(tot/60)%24).padStart(2,'0')}:${String(tot%60).padStart(2,'0')}`; }
+function fmtMins(m) { return m<60?`${m}분`:`${Math.floor(m/60)}시간${m%60>0?' '+m%60+'분':''}`; }
+
+function estimateMins(a,b) {
+  const R=6371,dLat=(b.lat-a.lat)*Math.PI/180,dLng=(b.lng-a.lng)*Math.PI/180;
+  const x=Math.sin(dLat/2)**2+Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dLng/2)**2;
+  return Math.max(5, Math.round(R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x))/30*60));
 }
 
-function removeLoc(id) {
-  if (locs.length <= 1) return alert('현장은 최소 1개 필요해요.');
-  locs = locs.filter(l => l.id !== id);
-  renderList(); saveData();
-}
-
-function addMins(t, m) {
-  const [h, mm] = t.split(':').map(Number);
-  const tot = h*60 + mm + m;
-  return `${String(Math.floor(tot/60)%24).padStart(2,'0')}:${String(tot%60).padStart(2,'0')}`;
-}
-
-function fmtMins(m) {
-  if (m < 60) return `${m}분`;
-  return `${Math.floor(m/60)}시간${m%60>0?' '+m%60+'분':''}`;
-}
-
-// 카카오 지오코딩
-function geocode(addr) {
-  return new Promise((resolve, reject) => {
-    const geocoder = new kakao.maps.services.Geocoder();
-    geocoder.addressSearch(addr, (result, status) => {
-      if (status === kakao.maps.services.Status.OK) {
-        resolve({ lat: parseFloat(result[0].y), lng: parseFloat(result[0].x) });
-      } else {
-        reject(new Error(`주소를 찾을 수 없어요: ${addr}`));
-      }
-    });
-  });
-}
-
-// 두 좌표 간 직선거리로 이동시간 추정 (카카오 Directions API는 서버 필요)
-function estimateMinutes(a, b) {
-  const R = 6371;
-  const dLat = (b.lat-a.lat)*Math.PI/180;
-  const dLng = (b.lng-a.lng)*Math.PI/180;
-  const x = Math.sin(dLat/2)*Math.sin(dLat/2) + Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dLng/2)*Math.sin(dLng/2);
-  const dist = R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1-x));
-  return Math.round(dist / 30 * 60); // 평균 30km/h 기준
-}
-
-// 최적 순서 (nearest neighbor)
-function findBestOrder(coords) {
-  const n = coords.length - 1;
-  const visited = new Set([0]);
-  const order = [];
-  let cur = 0;
-  while (order.length < n) {
-    let best = -1, bestDist = Infinity;
-    for (let j = 1; j <= n; j++) {
-      if (!visited.has(j)) {
-        const d = estimateMinutes(coords[cur], coords[j]);
-        if (d < bestDist) { bestDist = d; best = j; }
-      }
-    }
-    visited.add(best); order.push(best); cur = best;
+function findOrder(coords) {
+  const n=coords.length-1, visited=new Set([0]), order=[];
+  let cur=0;
+  while(order.length<n) {
+    let best=-1,bestD=Infinity;
+    for(let j=1;j<=n;j++) { if(!visited.has(j)){const d=estimateMins(coords[cur],coords[j]);if(d<bestD){bestD=d;best=j;}} }
+    visited.add(best); order.push(best); cur=best;
   }
   return order;
 }
 
+function geocode(addr) {
+  return new Promise((res,rej) => {
+    const gc = new kakao.maps.services.Geocoder();
+    gc.addressSearch(addr, (r,s) => {
+      if(s===kakao.maps.services.Status.OK) res({lat:parseFloat(r[0].y),lng:parseFloat(r[0].x)});
+      else rej(new Error(`주소 못 찾음: ${addr}`));
+    });
+  });
+}
+
 function clearMap() {
-  markers.forEach(m => m.setMap(null));
-  polylines.forEach(p => p.setMap(null));
-  customOverlays.forEach(o => o.setMap(null));
-  markers = []; polylines = []; customOverlays = [];
+  customOverlays.forEach(o=>o.setMap(null));
+  polylines.forEach(p=>p.setMap(null));
+  customOverlays=[]; polylines=[];
 }
 
 function drawMap(coords, order) {
   clearMap();
-  const allStops = [coords[0], ...order.map(i => coords[i])];
-
-  // 경로선
-  for (let i = 0; i < allStops.length - 1; i++) {
-    const poly = new kakao.maps.Polyline({
-      map,
-      path: [new kakao.maps.LatLng(allStops[i].lat, allStops[i].lng), new kakao.maps.LatLng(allStops[i+1].lat, allStops[i+1].lng)],
-      strokeWeight: 5,
-      strokeColor: COLORS[i % COLORS.length],
-      strokeOpacity: 0.85,
-      strokeStyle: 'solid'
-    });
-    polylines.push(poly);
+  const stops=[coords[0],...order.map(i=>coords[i])];
+  for(let i=0;i<stops.length-1;i++) {
+    polylines.push(new kakao.maps.Polyline({map,path:[new kakao.maps.LatLng(stops[i].lat,stops[i].lng),new kakao.maps.LatLng(stops[i+1].lat,stops[i+1].lng)],strokeWeight:5,strokeColor:COLORS[i%COLORS.length],strokeOpacity:0.85,strokeStyle:'solid'}));
   }
-  // 귀가선
-  const last = allStops[allStops.length-1];
-  const home = allStops[0];
-  const returnPoly = new kakao.maps.Polyline({
-    map,
-    path: [new kakao.maps.LatLng(last.lat, last.lng), new kakao.maps.LatLng(home.lat, home.lng)],
-    strokeWeight: 4, strokeColor: '#aaa', strokeOpacity: 0.6, strokeStyle: 'dashed'
+  polylines.push(new kakao.maps.Polyline({map,path:[new kakao.maps.LatLng(stops[stops.length-1].lat,stops[stops.length-1].lng),new kakao.maps.LatLng(stops[0].lat,stops[0].lng)],strokeWeight:4,strokeColor:'#aaa',strokeOpacity:0.6,strokeStyle:'dashed'}));
+  stops.forEach((c,i)=>{
+    const color=i===0?'#444':COLORS[(i-1)%COLORS.length],label=i===0?'집':String(i);
+    customOverlays.push(new kakao.maps.CustomOverlay({map,position:new kakao.maps.LatLng(c.lat,c.lng),content:`<div style="background:${color};color:white;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3)">${label}</div>`,yAnchor:0.5,xAnchor:0.5}));
   });
-  polylines.push(returnPoly);
-
-  // 마커
-  allStops.forEach((coord, i) => {
-    const color = i === 0 ? '#555' : COLORS[(i-1) % COLORS.length];
-    const label = i === 0 ? '집' : String(i);
-    const content = `<div style="background:${color};color:white;width:${i===0?32:28}px;height:${i===0?32:28}px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:${i===0?13:12}px;font-weight:700;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3);cursor:pointer;">${label}</div>`;
-    const overlay = new kakao.maps.CustomOverlay({
-      map, position: new kakao.maps.LatLng(coord.lat, coord.lng),
-      content, yAnchor: 0.5, xAnchor: 0.5
-    });
-    customOverlays.push(overlay);
-  });
-
-  // 지도 범위 맞추기
-  const bounds = new kakao.maps.LatLngBounds();
-  allStops.forEach(c => bounds.extend(new kakao.maps.LatLng(c.lat, c.lng)));
+  const bounds=new kakao.maps.LatLngBounds();
+  stops.forEach(c=>bounds.extend(new kakao.maps.LatLng(c.lat,c.lng)));
   map.setBounds(bounds);
 }
 
 function renderTimeline(dep, order, coords) {
-  const totalWork = locs.reduce((s,l)=>s+l.dur,0);
-  let totalTravel = 0;
-  const allCoords = [coords[0], ...order.map(i=>coords[i])];
-  for (let i=0; i<allCoords.length-1; i++) totalTravel += estimateMinutes(allCoords[i], allCoords[i+1]);
-  totalTravel += estimateMinutes(allCoords[allCoords.length-1], coords[0]);
-
-  const endTime = addMins(dep, totalTravel + totalWork);
-  document.getElementById('stats').innerHTML = `
-    <div class="stat"><div class="stat-val">${fmtMins(totalTravel)}</div><div class="stat-lbl">총 이동시간</div></div>
-    <div class="stat"><div class="stat-val">${fmtMins(totalWork)}</div><div class="stat-lbl">총 작업시간</div></div>
-    <div class="stat"><div class="stat-val">${endTime}</div><div class="stat-lbl">예상 귀가</div></div>
-  `;
-
-  const tlEl = document.getElementById('timeline');
-  tlEl.innerHTML = '';
-  let ct = dep;
-  const steps = [{ name:'출발', detail: document.getElementById('home-addr').value||'출발지', color:'#555', time: dep }];
-
-  order.forEach((idx, i) => {
-    const travel = estimateMinutes(i===0?coords[0]:coords[order[i-1]], coords[idx]);
-    ct = addMins(ct, travel);
-    const arrive = ct;
-    const loc = locs[idx-1];
-    ct = addMins(ct, loc.dur);
-    steps.push({ name: loc.name, detail: `도착 ${arrive} · 작업 ${fmtMins(loc.dur)} · 완료 ${ct}`, travelInfo: `이동 ${fmtMins(travel)}`, color: COLORS[(i)%COLORS.length] });
+  const totalWork=locs.reduce((s,l)=>s+l.dur,0);
+  const all=[coords[0],...order.map(i=>coords[i])];
+  let totalTravel=0;
+  for(let i=0;i<all.length-1;i++) totalTravel+=estimateMins(all[i],all[i+1]);
+  totalTravel+=estimateMins(all[all.length-1],coords[0]);
+  document.getElementById('stats').innerHTML=`<div class="stat"><div class="stat-val">${fmtMins(totalTravel)}</div><div class="stat-lbl">총 이동시간</div></div><div class="stat"><div class="stat-val">${fmtMins(totalWork)}</div><div class="stat-lbl">총 작업시간</div></div><div class="stat"><div class="stat-val">${addMins(dep,totalTravel+totalWork)}</div><div class="stat-lbl">예상 귀가</div></div>`;
+  const tlEl=document.getElementById('timeline'); tlEl.innerHTML='';
+  let ct=dep;
+  const steps=[{name:'출발',detail:document.getElementById('home-addr').value,color:'#444'}];
+  order.forEach((idx,i)=>{
+    const travel=estimateMins(i===0?coords[0]:coords[order[i-1]],coords[idx]);
+    ct=addMins(ct,travel); const arrive=ct;
+    const loc=locs[idx-1]; ct=addMins(ct,loc.dur);
+    steps.push({name:loc.name,detail:`도착 ${arrive} · 작업 ${fmtMins(loc.dur)} · 완료 ${ct}`,travelInfo:`이동 ${fmtMins(travel)}`,color:COLORS[i%COLORS.length]});
   });
-
-  const lastTravel = estimateMinutes(coords[order[order.length-1]], coords[0]);
-  ct = addMins(ct, lastTravel);
-  steps.push({ name:'귀가', detail:`도착 ${ct} · 이동 ${fmtMins(lastTravel)}`, color:'#555' });
-
-  steps.forEach((step, si) => {
-    const isLast = si === steps.length-1;
-    const div = document.createElement('div');
-    div.className = 'tl-item';
-    div.innerHTML = `
-      <div class="tl-left">
-        <div class="tl-dot" style="background:${step.color}"></div>
-        ${!isLast?'<div class="tl-line"></div>':''}
-      </div>
-      <div class="tl-body">
-        <div class="tl-name">${step.name}${step.travelInfo?` <span style="font-size:11px;color:var(--text-muted);font-weight:400">(${step.travelInfo})</span>`:''}</div>
-        <div class="tl-detail">${step.detail}</div>
-      </div>
-    `;
+  const lt=estimateMins(coords[order[order.length-1]],coords[0]); ct=addMins(ct,lt);
+  steps.push({name:'귀가',detail:`도착 ${ct} · 이동 ${fmtMins(lt)}`,color:'#444'});
+  steps.forEach((s,si)=>{
+    const isLast=si===steps.length-1,div=document.createElement('div'); div.className='tl-item';
+    div.innerHTML=`<div class="tl-left"><div class="tl-dot" style="background:${s.color}"></div>${!isLast?'<div class="tl-line"></div>':''}</div><div class="tl-body"><div class="tl-name">${s.name}${s.travelInfo?` <span style="font-size:11px;color:var(--text-muted);font-weight:400">(${s.travelInfo})</span>`:''}</div><div class="tl-detail">${s.detail}</div></div>`;
     tlEl.appendChild(div);
   });
   document.getElementById('result-section').classList.add('show');
 }
 
 async function calculate() {
-  const homeAddr = document.getElementById('home-addr').value.trim();
-  const dep = document.getElementById('departure').value;
-  if (!homeAddr) return alert('출발지 주소를 입력해주세요.');
-  const emptyLoc = locs.find(l => !l.addr.trim());
-  if (emptyLoc) return alert(`"${emptyLoc.name}"의 주소를 입력해주세요.`);
-
-  document.getElementById('btn-calc').disabled = true;
+  const homeAddr=document.getElementById('home-addr').value.trim(), dep=document.getElementById('departure').value;
+  if(!homeAddr) return alert('출발지 주소를 입력해주세요.');
+  const empty=locs.find(l=>!l.addr.trim());
+  if(empty) return alert(`"${empty.name}"의 주소를 입력해주세요.`);
+  document.getElementById('btn-calc').disabled=true;
   document.getElementById('loading').classList.add('show');
   document.getElementById('error-msg').classList.remove('show');
   document.getElementById('result-section').classList.remove('show');
-
   try {
-    const homeCoord = await geocode(homeAddr);
-    const locCoords = await Promise.all(locs.map(l => geocode(l.addr)));
-    const allCoords = [homeCoord, ...locCoords];
-    const order = findBestOrder(allCoords);
-    drawMap(allCoords, order);
-    renderTimeline(dep, order, allCoords);
+    const homeCoord=await geocode(homeAddr);
+    const locCoords=await Promise.all(locs.map(l=>geocode(l.addr)));
+    const allCoords=[homeCoord,...locCoords];
+    const order=findOrder(allCoords);
+    drawMap(allCoords,order);
+    renderTimeline(dep,order,allCoords);
   } catch(e) {
-    const errEl = document.getElementById('error-msg');
-    errEl.textContent = `오류: ${e.message}`;
-    errEl.classList.add('show');
+    const errEl=document.getElementById('error-msg'); errEl.textContent=`오류: ${e.message}`; errEl.classList.add('show');
   } finally {
-    document.getElementById('btn-calc').disabled = false;
+    document.getElementById('btn-calc').disabled=false;
     document.getElementById('loading').classList.remove('show');
   }
 }
+
+// 카카오 SDK 동적 로드 후 초기화
+(function() {
+  const script = document.createElement('script');
+  script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${KAKAO_KEY}&libraries=services&autoload=false`;
+  script.onload = function() {
+    kakao.maps.load(function() {
+      loadData();
+      initMap();
+      renderList();
+      document.getElementById('home-addr').addEventListener('change', saveData);
+      document.getElementById('departure').addEventListener('change', saveData);
+    });
+  };
+  document.head.appendChild(script);
+})();
 </script>
 </body>
 </html>
