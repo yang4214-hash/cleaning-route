@@ -140,7 +140,7 @@ function loadData() {
 }
 
 // 지도 초기화
-window.onload = function() {
+kakao.maps.load(function() {
   map = new kakao.maps.Map(document.getElementById('map'), {
     center: new kakao.maps.LatLng(37.4563, 127.1313),
     level: 9
