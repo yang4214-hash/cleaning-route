@@ -284,7 +284,7 @@ header { background: var(--accent); padding: 0 20px; height: 56px; display: flex
           <button class="btn-add" onclick="addLoc()" style="margin:0">+ 현장 추가</button>
           <div class="tooltip-wrap" style="flex:1">
             <button class="btn-tsp" id="btn-tsp" onclick="autoSort()" style="width:100%">🔀 최적 순서</button>
-            <span class="tip">방문 가능 시간대를 지키면서<br>가장 짧은 동선으로 재배열해요</span>
+            <span class="tip">모든 순서를 시뮬레이션해서<br>대기시간+이동시간이 최소인<br>순서를 찾아내요</span>
           </div>
         </div>
         <div class="save-notice">💾 요일별로 자동 저장됩니다</div>
@@ -341,11 +341,12 @@ header { background: var(--accent); padding: 0 20px; height: 56px; display: flex
         <li><b>출발 시간 설정</b> - 그 날 처음 나가는 시간</li>
         <li><b>현장 추가</b> - 방문할 작업지들을 등록 (주소 + 작업시간)</li>
         <li><b>도착지 선택</b> - 귀가/마지막현장/별도지정 중 선택</li>
+        <li><b>🔀 최적 순서</b> 버튼으로 자동 정렬</li>
         <li><b>최적 동선 계산하기</b> 버튼 클릭 → 결과 확인</li>
       </ol>
 
       <h3>2. 요일별 동선 관리</h3>
-      <p>상단 <code>월~일</code> 탭에서 요일별로 다른 동선을 저장할 수 있어요. 오늘 요일에는 빨간 점(●)이 표시되고, 각 요일의 입력값과 계산 결과는 자동으로 저장됩니다. 매주 비슷한 동선을 다니는 경우 편하게 쓸 수 있어요.</p>
+      <p>상단 <code>월~일</code> 탭에서 요일별로 다른 동선을 저장할 수 있어요. 오늘 요일에는 빨간 점(●)이 표시되고, 각 요일의 입력값과 계산 결과는 자동으로 저장됩니다.</p>
 
       <h3>3. 혼잡 보정(%)</h3>
       <p>카카오 모빌리티 API가 알려준 이동시간에 추가 여유를 곱하는 값이에요.</p>
@@ -366,14 +367,15 @@ header { background: var(--accent); padding: 0 20px; height: 56px; display: flex
       </ul>
       <div class="info-box">⚠️ 시간 제약이 너무 빡빡하면 일부 현장은 <b>방문 불가</b>로 표시되고 카드가 빨갛게 변해요. 그땐 시간대를 늘려보거나 작업시간을 줄여보세요.</div>
 
-      <h3>5. 🔀 최적 순서 버튼</h3>
-      <p>현장 목록을 가장 효율적인 순서로 자동 재배열합니다.</p>
+      <h3>5. 🔀 최적 순서 알고리즘</h3>
+      <p>현장 8개까지는 <b>모든 가능한 순서를 다 시뮬레이션</b>해서 가장 효율적인 순서를 찾아내요 (Brute Force 방식).</p>
       <ul>
-        <li>방문 가능 시간대가 있는 현장 → <b>마감 시간이 빠른 것부터</b> 우선 배치</li>
-        <li>같은 우선순위면 → <b>가까운 곳부터</b> 정렬</li>
-        <li>너무 일찍 도착하는 경우 → 시작 시간까지 대기 처리</li>
+        <li>현장 N개 → N가지 순서 (4개면 24가지, 5개면 120가지, 6개면 720가지)</li>
+        <li>각 순서마다 이동시간 + 대기시간 + 시간제약 위반을 계산</li>
+        <li>위반 없이 총 시간이 가장 짧은 순서를 선택</li>
       </ul>
-      <p>한 번 누르면 현장 목록 순서가 바뀌고, 그 상태로 <code>계산하기</code>를 누르면 새 순서대로 동선이 계산돼요.</p>
+      <div class="info-box">💡 예: 현장1은 11~12시만 가능, 현장2·3은 제약 없음<br>→ "현장1을 먼저 가서 53분 대기"보다 "현장2,3 먼저 처리 후 현장1로"가 더 효율적이라면 후자를 선택해요.</div>
+      <p>현장이 9개 이상이면 순열이 너무 많아 휴리스틱(빠른 근사)으로 처리해요.</p>
 
       <h3>6. 📍 지도 추가</h3>
       <p>버튼을 누르면 지도 클릭 모드가 활성화돼요. 지도 위에서 추가하고 싶은 위치를 클릭하면 그 좌표의 주소가 자동으로 현장으로 추가됩니다. 다시 누르면 종료.</p>
@@ -384,7 +386,6 @@ header { background: var(--accent); padding: 0 20px; height: 56px; display: flex
         <li><b>첫 현장</b>: 30분</li>
         <li><b>두 번째부터</b>: 바로 위 현장과 같은 값</li>
       </ul>
-      <p>같은 패턴의 작업이 반복될 때 빠르게 입력할 수 있어요.</p>
 
       <h3>8. 결과 공유</h3>
       <ul>
@@ -920,57 +921,142 @@ function drawMiniMap(stops) {
   svg.innerHTML=`<rect width="${W}" height="${H}" fill="#f0ede8"/>${lines}${circles}${labels}`;
 }
 
-// ── 시간 제약 TSP (Greedy) ──
-// 매 단계마다 후보 평가 → 시간창 안 가능한 것 중 마감 빠른 순, 거리 가까운 순
+// ── 시간 제약 TSP (Brute Force) ──
+// n <= 8: 모든 순열 시도 → 시간제약 위반 없고 총 시간(이동+대기) 최소인 순서 선택
+// n >= 9: 휴리스틱 (Greedy) fallback
 async function autoSort() {
   const empty=locs.find(l=>!l.addr.trim());
   if (empty) return alert(`"${empty.name}"의 주소를 먼저 입력해주세요.`);
   const btn=document.getElementById('btn-tsp');
   btn.disabled=true; btn.textContent='⏳ 계산 중...';
+
+  // UI가 멈추지 않도록 다음 프레임으로 미룸
+  await new Promise(r=>setTimeout(r,30));
+
   try {
     const homeAddr=document.getElementById('home-addr').value.trim();
     const dep=document.getElementById('departure').value;
     const bufPct=parseInt(document.getElementById('buffer').value)||0;
+    const destType=getDestType();
+    const destAddrVal=document.getElementById('dest-addr').value.trim();
 
     const coords=await Promise.all(locs.map(l=>geocodeAddr(l.addr)));
     const homeCoord=homeAddr?await geocodeAddr(homeAddr):coords[0];
+    const destCoord = (destType==='home') ? homeCoord
+                    : (destType==='custom' && destAddrVal) ? await geocodeAddr(destAddrVal)
+                    : null;
     const n=coords.length;
-    const visited=new Set(), order=[];
-    let cur=homeCoord;
-    let curMin=timeToMin(dep);
+    const depMin=timeToMin(dep);
 
-    while(order.length<n){
-      const candidates=[];
-      for (let j=0;j<n;j++) {
-        if (visited.has(j)) continue;
-        const travel = Math.round(estimateMins(cur, coords[j]) * (1+bufPct/100));
+    // 거리 행렬 미리 계산
+    // dist[i][j] = i번 현장 → j번 현장 (분)
+    // distFromHome[j] = 출발지 → j번 현장
+    // distToDest[i]  = i번 현장 → 도착지 (없으면 null)
+    const dist = Array.from({length:n}, ()=>new Array(n).fill(0));
+    for (let i=0;i<n;i++) for (let j=0;j<n;j++)
+      if (i!==j) dist[i][j] = Math.round(estimateMins(coords[i], coords[j]) * (1+bufPct/100));
+    const distFromHome = coords.map(c => Math.round(estimateMins(homeCoord, c) * (1+bufPct/100)));
+    const distToDest = destCoord ? coords.map(c => Math.round(estimateMins(c, destCoord) * (1+bufPct/100))) : null;
+
+    // 주어진 순서대로 가는 시뮬레이션 → 점수 반환
+    function simulate(perm) {
+      let curMin = depMin;
+      let totalWait = 0;
+      let totalTravel = 0;
+      let violations = 0;
+
+      for (let k=0;k<perm.length;k++) {
+        const j = perm[k];
+        const travel = (k===0) ? distFromHome[j] : dist[perm[k-1]][j];
         let arrive = curMin + travel;
-        const twStart = timeToMin(locs[j].twStart);
-        const twEnd = timeToMin(locs[j].twEnd);
-        if (twStart !== null && arrive < twStart) arrive = twStart;
-        const feasible = (twEnd === null) || (arrive <= twEnd);
-        candidates.push({
-          idx:j, travel, arrive, feasible,
-          twEnd: twEnd !== null ? twEnd : Infinity
-        });
+        const tws = timeToMin(locs[j].twStart);
+        const twe = timeToMin(locs[j].twEnd);
+        let wait = 0;
+        if (tws !== null && arrive < tws) {
+          wait = tws - arrive;
+          arrive = tws;
+        }
+        if (twe !== null && arrive > twe) {
+          violations++;
+        }
+        totalTravel += travel;
+        totalWait += wait;
+        curMin = arrive + locs[j].dur;
       }
-      const feasibles = candidates.filter(c=>c.feasible);
-      let pick;
-      if (feasibles.length > 0) {
-        feasibles.sort((a,b)=> a.twEnd - b.twEnd || a.travel - b.travel);
-        pick = feasibles[0];
-      } else {
-        candidates.sort((a,b)=> a.travel - b.travel);
-        pick = candidates[0];
+      // 마지막 → 도착지 (last가 아닐 때만)
+      if (distToDest) {
+        const last = perm[perm.length-1];
+        totalTravel += distToDest[last];
       }
-      visited.add(pick.idx);
-      order.push(pick.idx);
-      cur = coords[pick.idx];
-      curMin = pick.arrive + locs[pick.idx].dur;
+      // 점수: 위반은 압도적 페널티, 그다음 (이동+대기) 최소화
+      return { score: violations * 1e9 + (totalTravel + totalWait), violations, totalTravel, totalWait };
     }
-    locs=order.map(i=>locs[i]);
+
+    let bestOrder = null;
+    let bestScore = Infinity;
+
+    if (n <= 8) {
+      // Brute Force: 모든 순열
+      const indices = Array.from({length:n}, (_, i) => i);
+
+      // Heap's algorithm (in-place 순열 생성, 빠름)
+      const permArr = indices.slice();
+      function evalCurrent() {
+        const r = simulate(permArr);
+        if (r.score < bestScore) {
+          bestScore = r.score;
+          bestOrder = permArr.slice();
+        }
+      }
+      function heapPermute(k) {
+        if (k === 1) { evalCurrent(); return; }
+        for (let i=0;i<k;i++) {
+          heapPermute(k-1);
+          const swap = (k % 2 === 0) ? i : 0;
+          [permArr[swap], permArr[k-1]] = [permArr[k-1], permArr[swap]];
+        }
+      }
+      heapPermute(n);
+    } else {
+      // n >= 9: 휴리스틱 (시간창 + 대기시간 고려 Greedy)
+      const visited=new Set(), order=[];
+      let cur=-1; // -1 = home
+      let curMin=depMin;
+      while (order.length < n) {
+        const cands=[];
+        for (let j=0;j<n;j++) {
+          if (visited.has(j)) continue;
+          const travel = (cur === -1) ? distFromHome[j] : dist[cur][j];
+          let arrive = curMin + travel;
+          const tws = timeToMin(locs[j].twStart);
+          const twe = timeToMin(locs[j].twEnd);
+          let wait = 0;
+          if (tws !== null && arrive < tws) { wait = tws - arrive; arrive = tws; }
+          const feasible = (twe === null) || (arrive <= twe);
+          cands.push({ idx:j, travel, wait, arrive, feasible, cost: travel + wait });
+        }
+        const feasibles = cands.filter(c => c.feasible);
+        let pick;
+        if (feasibles.length > 0) {
+          feasibles.sort((a,b) => a.cost - b.cost);
+          pick = feasibles[0];
+        } else {
+          cands.sort((a,b) => a.travel - b.travel);
+          pick = cands[0];
+        }
+        visited.add(pick.idx);
+        order.push(pick.idx);
+        cur = pick.idx;
+        curMin = pick.arrive + locs[pick.idx].dur;
+      }
+      bestOrder = order;
+    }
+
+    locs = bestOrder.map(i => locs[i]);
     renderList(); saveData();
-    showToast('✅ 최적 순서로 정렬됐어요!');
+
+    if (n <= 8) showToast(`✅ ${n}개 현장의 모든 순서 검토 완료!`);
+    else showToast(`✅ 휴리스틱 정렬 완료 (현장 ${n}개)`);
   } catch(e){alert('정렬 오류: '+e.message);}
   finally{btn.disabled=false;btn.textContent='🔀 최적 순서';}
 }
